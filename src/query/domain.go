@@ -71,5 +71,4 @@ func GetDomainTree() *rbtree.Tree {
 		})
 	}
 	return DomainTree
-
 }

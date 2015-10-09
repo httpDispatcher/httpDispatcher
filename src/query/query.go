@@ -1,6 +1,7 @@
 package query
 
 import (
+	"reflect"
 	//	"flag"
 	"fmt"
 	"github.com/miekg/dns"
@@ -19,20 +20,33 @@ func QueryNS(domain string, dc *Domain) ([]string, error) {
 	fmt.Println("domain:" + domain)
 	fmt.Print("AS:")
 	fmt.Println(dc)
-	m.SetQuestion(domain, dns.TypeNS)
+	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
 	fmt.Print("m")
 	fmt.Println(m)
 	//@TODO: randow cf.Servers for load banlance
 	r, _, e := c.Exchange(m, dc.AuthoritativeServers[0]+":"+dc.Port)
 	fmt.Println("return:" + r.String())
 
+	fmt.Println("++++++++++++++++++++++++++++++++++++++++++++++")
+	fmt.Println(r.Ns)
+
 	if e != nil {
 		return nil, e
 	}
+
 	for _, a := range r.Answer {
-		if ns, ok := a.(*dns.NS); ok {
-			ns_rr = append(ns_rr, dns.Field(ns, 1))
+		fmt.Print("TypeOF a :")
+		fmt.Println(reflect.TypeOf(a))
+		fmt.Print("ValueOF a:")
+		fmt.Println(reflect.ValueOf(a))
+		if cname, ok := a.(*dns.CNAME); ok {
+			fmt.Println("CNAME Found!: " + domain + " <--> " + dns.Field(cname, 1))
 		}
+	}
+	for _, ns := range r.Ns {
+		fmt.Print("TypeOF ns :")
+		fmt.Println(reflect.TypeOf(ns))
+		ns_rr = append(ns_rr, dns.Field(ns, 1))
 	}
 	return ns_rr, nil
 }
