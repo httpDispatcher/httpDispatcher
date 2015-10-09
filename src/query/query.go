@@ -1,8 +1,6 @@
 package query
 
 import (
-	"errors"
-	"strconv"
 	//	"flag"
 	"fmt"
 	"github.com/miekg/dns"
@@ -14,59 +12,19 @@ const (
 	NS_SERVER_PORT = "53"
 )
 
-type DomainConfig struct {
-	DomainName           string
-	AuthoritativeServers []string
-	Port                 string
-	Ttl                  string
-}
-
-type DomainRecord struct {
-	dc      *DomainConfig
-	Records []string
-	IpStart uint64
-	IpEnd   uint64
-	NetMask uint8
-}
-
-func (dc *DomainConfig) SetDomain(d string) (bool, error) {
-	if _, ok := dns.IsDomainName(d); ok {
-		dc.DomainName = dns.Fqdn(d)
-		return true, nil
-	} else {
-		return false, errors.New(d + " is not domain name")
-	}
-}
-
-func (dc *DomainConfig) SetTtl(t string) error {
-	if ti, e := strconv.Atoi(t); e == nil {
-		if ti > 0 && ti < 1024 {
-			dc.Ttl = t
-		} else {
-			return errors.New(t + "is not permited")
-		}
-	}
-	return nil
-}
-
-func (dc *DomainConfig) SetAS(as []string) error {
-	for _, s := range as {
-		if ip := net.ParseIP(s); ip != nil {
-			dc.AuthoritativeServers = append(dc.AuthoritativeServers, s)
-		} else {
-			return errors.New(s + " is not standard ip string")
-		}
-	}
-	return nil
-}
-
-func QueryNS(domain string, dc *DomainConfig) ([]string, error) {
+func QueryNS(domain string, dc *Domain) ([]string, error) {
 	var ns_rr []string
 	c := new(dns.Client)
 	m := new(dns.Msg)
+	fmt.Println("domain:" + domain)
+	fmt.Print("AS:")
+	fmt.Println(dc)
 	m.SetQuestion(domain, dns.TypeNS)
+	fmt.Print("m")
+	fmt.Println(m)
 	//@TODO: randow cf.Servers for load banlance
 	r, _, e := c.Exchange(m, dc.AuthoritativeServers[0]+":"+dc.Port)
+	fmt.Println("return:" + r.String())
 
 	if e != nil {
 		return nil, e
@@ -79,7 +37,7 @@ func QueryNS(domain string, dc *DomainConfig) ([]string, error) {
 	return ns_rr, nil
 }
 
-func QueryA(domain string, dc *DomainConfig, edns0subnet dns.EDNS0) ([]string, *dns.EDNS0_SUBNET, error) {
+func QueryA(domain string, dc *Domain, edns0subnet dns.EDNS0) ([]string, *dns.EDNS0_SUBNET, error) {
 	var a_rr []string
 	c := new(dns.Client)
 	m := new(dns.Msg)
@@ -174,7 +132,7 @@ func UnpackEdns0Subnet(opt *dns.OPT) {
 
 }
 
-func Test(domain string, edns0ip string, dc *DomainConfig) {
+func Test(domain string, edns0ip string, dc *Domain) {
 	fmt.Print("DNS Server: ")
 	fmt.Println(dc.AuthoritativeServers[0])
 	fmt.Print("Request domain: ")
