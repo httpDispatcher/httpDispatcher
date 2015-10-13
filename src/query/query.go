@@ -1,194 +1,269 @@
 package query
 
 import (
-	"reflect"
-	//	"flag"
+	"container/list"
+	"errors"
 	"fmt"
-	"github.com/miekg/dns"
-	//	"log"
+	"os"
+	"reflect"
+	"time"
+	"utils"
+
 	"net"
+
+	"github.com/miekg/dns"
 )
 
 const (
-	NS_SERVER_PORT = "53"
+	NS_SERVER_PORT      = "53"
+	DEFAULT_RESOLV_FILE = "/etc/resolv.conf"
 )
 
-func QueryNS(domain string, dc *Domain) ([]string, error) {
-	var ns_rr []string
-	c := new(dns.Client)
-	m := new(dns.Msg)
-	fmt.Println("domain:" + domain)
-	fmt.Print("AS:")
-	fmt.Println(dc)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
-	fmt.Print("m")
-	fmt.Println(m)
-	//@TODO: randow cf.Servers for load banlance
-	r, _, e := c.Exchange(m, dc.AuthoritativeServers[0]+":"+dc.Port)
-	fmt.Println("return:" + r.String())
+func GeneralQuery(
+	domainName,
+	domainResolverIP,
+	domainResolverPort string,
+	queryType uint16,
+	queryOpt *dns.OPT) (*dns.Msg, error) {
+	if _, ok := dns.IsDomainName(domainName); !ok {
+		return nil, errors.New("Param is not a domain name : " + domainName)
+	}
 
-	fmt.Println("++++++++++++++++++++++++++++++++++++++++++++++")
-	fmt.Println(r.Ns)
-
+	ds, dp, e := GetDomainConfig(domainName)
 	if e != nil {
 		return nil, e
 	}
+	fmt.Println("++++++++begin ds dp+++++++++")
+	fmt.Println(ds + "......" + dp + "  .......")
+	fmt.Println("++++++++end ds dp+++++++++")
 
-	for _, a := range r.Answer {
-		fmt.Print("TypeOF a :")
-		fmt.Println(reflect.TypeOf(a))
-		fmt.Print("ValueOF a:")
-		fmt.Println(reflect.ValueOf(a))
-		if cname, ok := a.(*dns.CNAME); ok {
-			fmt.Println("CNAME Found!: " + domain + " <--> " + dns.Field(cname, 1))
-		}
+	c := new(dns.Client)
+	c.DialTimeout = 60 * time.Second
+	c.WriteTimeout = 60 * time.Second
+	c.ReadTimeout = 60 * time.Second
+	c.Net = "udp"
+
+	m := new(dns.Msg)
+	m.AuthenticatedData = true
+	m.RecursionDesired = true
+	m.SetQuestion(dns.Fqdn(domainName), queryType)
+	if queryOpt != nil {
+		m.Extra = append(m.Extra, queryOpt)
 	}
-	for _, ns := range r.Ns {
-		fmt.Print("TypeOF ns :")
-		fmt.Println(reflect.TypeOf(ns))
-		ns_rr = append(ns_rr, dns.Field(ns, 1))
+	r, _, e := c.Exchange(m, ds+":"+dp)
+
+	if e != nil {
+		fmt.Println(e.Error())
+		os.Exit(1)
+		return nil, e
 	}
-	return ns_rr, nil
+	return r, nil
 }
 
-func QueryA(domain string, dc *Domain, edns0subnet dns.EDNS0) ([]string, *dns.EDNS0_SUBNET, error) {
+func ParseCNAME(r *dns.Msg) (bool, *dns.CNAME, uint32) {
+	for _, a := range r.Answer {
+		if cname, ok := a.(*dns.CNAME); ok {
+			fmt.Println("CNAME Found!: " + cname.Hdr.Name + " <--> " + dns.Field(cname, 1))
+			ttl := cname.Hdr.Ttl
+			fmt.Println(cname.Target)
+			return true, cname, ttl
+		}
+	}
+	return false, nil, 0
+}
+
+func ParseNS(ns []dns.RR) ([]string, uint32, error) {
+	var ns_rr []string
+	var ttl uint32 = 0
+	if len(ns) > 0 {
+		for _, n_s := range ns {
+			if x, ok := n_s.(*dns.NS); ok {
+				ns_rr = append(ns_rr, x.Ns)
+				ttl = x.Hdr.Ttl
+			}
+		}
+	}
+
+	return ns_rr, ttl, nil
+}
+
+func QueryNS(d string) ([]dns.RR, error) {
+
+	fmt.Println("domain:" + d)
+
+	var r_arr []dns.RR = nil
+
+	//@TODO: randow cf.Servers for load banlance
+	ds, dp, e := GetDomainConfig(d)
+
+	if e == nil {
+		fmt.Println(ds + dp)
+	} else {
+	}
+
+	r, e := GeneralQuery(d, ds, dp, dns.TypeNS, nil)
+	fmt.Println("rrrrrrrrrrrrrrrrrrrrrrrrrrrr")
+	fmt.Println(r)
+	fmt.Println("eeeeeeeeeeeeeeeeeeeeeeeeeeee")
+	if e != nil {
+		return nil, e
+	}
+	if len(r.Ns) > 0 {
+		r_arr = append(r_arr, r.Ns...)
+	}
+	if len(r.Answer) > 0 {
+		r_arr = append(r_arr, r.Answer...)
+	}
+	return r_arr, nil
+}
+
+func QueryCNAME(d string, isEdns0 bool) {
+	if _, is := dns.IsDomainName(d); !is {
+		//		return nil, errors.New("param error " + d + " is not a  domain name")
+		//		fmt.Println(d + " is not a domain name")
+	}
+	var o *dns.OPT = nil
+	if isEdns0 {
+		ip := utils.GetClientIP()
+		o = PackEdns0SubnetOPT(ip, utils.DEFAULT_SOURCEMASK, utils.DEFAULT_SOURCESCOPE)
+	} else {
+		o = nil
+	}
+	ds, dp, _ := GetDomainConfig(d)
+	//	fmt.Println("dp :" + dp)
+	r, e := GeneralQuery(d, ds, dp, dns.TypeCNAME, o)
+	if e != nil {
+		fmt.Println(e.Error())
+		os.Exit(1)
+	}
+	if r.Rcode == 0 && r.Truncated == false {
+		//		for _, r_t := range r.Answer {
+
+		//		}
+	} else {
+		fmt.Print("r.Rcode:")
+		fmt.Println(r.Rcode)
+		fmt.Print("r.Truncated:")
+		fmt.Println(r.Truncated)
+		fmt.Print("r :")
+		fmt.Println(r)
+		os.Exit(1)
+	}
+}
+
+func UnpackCNAMEAnswer(a dns.RR, l *list.List) *list.List {
+
+	if ac, ok := a.(*dns.CNAME); ok {
+		fmt.Println("CNAME:")
+		fmt.Println(ac)
+		//		l.PushBack(a)
+	}
+	return l
+}
+
+func UnpackAAnswer(a_rr []string, a dns.RR) ([]string, uint32) {
+	var ttl uint32 = 0
+	if aa, ok := a.(*dns.A); ok {
+		a_rr = append(a_rr, aa.A.To4().String())
+		if ttl == 0 {
+			ttl = aa.Hdr.Ttl
+		}
+	}
+	return a_rr, ttl
+}
+
+func ParseA(answer []dns.RR) ([]string, uint32, error) {
 	var a_rr []string
-	c := new(dns.Client)
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeA)
+	var ttl uint32 = 0
+	fmt.Print("dns.IsRRset(answer):")
+	fmt.Println(dns.IsRRset(answer))
+	for _, a := range answer {
+		fmt.Println(reflect.TypeOf(a))
+		switch a.Header().Rrtype {
+		case dns.TypeCNAME:
+			{
+				fmt.Print("dns.TypeCNAME :")
+				fmt.Println(a.String())
+			}
+		case dns.TypeA:
+			{
+				a_rr, ttl = UnpackAAnswer(a_rr, a)
+			}
+		}
+	}
+	return a_rr, ttl, nil
+
+}
+
+func QueryA(domain string, isEdns0 bool) ([]dns.RR, *dns.EDNS0_SUBNET, error) {
+	//	var a_rr []string
+	var o *dns.OPT = nil
+	if isEdns0 {
+		ip := utils.GetClientIP()
+		o = PackEdns0SubnetOPT(ip, utils.DEFAULT_SOURCEMASK, utils.DEFAULT_SOURCESCOPE)
+	} else {
+		o = nil
+	}
+	ds, dp, e := GetDomainConfig(domain)
+	r, e := GeneralQuery(domain, ds, dp, dns.TypeA, o)
+
+	if e != nil {
+		utils.Logger.Println(r)
+		return nil, nil, e
+	}
+	//	fmt.Println(r)
+	et := new(dns.EDNS0_SUBNET)
+
+	if isEdns0 {
+		if r_opt := r.IsEdns0(); r_opt != nil {
+			for _, ot1 := range r_opt.Option {
+				if ot1.Option() == dns.EDNS0SUBNET || ot1.Option() == dns.EDNS0SUBNETDRAFT {
+					et = ot1.(*dns.EDNS0_SUBNET)
+				} else {
+					et = nil
+				}
+			}
+		} else {
+			et = nil
+		}
+	}
+	fmt.Print("r.Answer:")
+	fmt.Println(r.Answer)
+	//	for _, a := range r.Answer {
+	//		fmt.Println(reflect.TypeOf(a))
+	//		if aa, ok := a.(*dns.A); ok {
+	//			a_rr = append(a_rr, dns.Field(aa, 1))
+	//		}
+	//	}
+	//	fmt.Println(a_rr)
+
+	//	fmt.Println(r.Answer)
+	return r.Answer, et, nil
+}
+
+func PackEdns0Subnet(ip string, sourceNetmask uint8, sourceScope uint8) *dns.EDNS0_SUBNET {
+	edns0 := new(dns.EDNS0_SUBNET)
+	edns0.Code = dns.EDNS0SUBNET
+	edns0.SourceScope = sourceScope
+	edns0.Address = net.ParseIP(ip).To4()
+	edns0.SourceNetmask = sourceNetmask
+	edns0.Family = 1
+	return edns0
+}
+
+func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
+
+	edns0subnet := PackEdns0Subnet(ip, sourceNetmask, sourceScope)
 	o := new(dns.OPT)
 	o.Hdr.Name = "."
 	o.Hdr.Rrtype = dns.TypeOPT
 	o.Option = append(o.Option, edns0subnet)
-	m.Extra = append(m.Extra, o)
-	et := new(dns.EDNS0_SUBNET)
-	r, _, e := c.Exchange(m, dc.AuthoritativeServers[0]+":"+dc.Port)
-	if e != nil {
-		return nil, et, e
-	}
-	//	fmt.Println("------Response.Answer------")
-	//	fmt.Println(r.Answer)
-	//	fmt.Println("------Response.Ns-------")
-	//	fmt.Println(r.Ns)
-	//	fmt.Println("-----Response.String()-------")
-	//	fmt.Println(r.String())
-	//	fmt.Println("------------>>>>>")
-	//	for _, ot := range r.Extra {
-	//		fmt.Print("1:")
-	//		fmt.Println(ot.Header().Name)
-	//		fmt.Print("2:")
-	//		fmt.Println(ot.Header().Class)
-	//		fmt.Print("3:")
-	//		fmt.Println(ot.Header().Rdlength)
-	//		fmt.Print("4:")
-	//		fmt.Println(ot.Header().Rrtype)
-	//		fmt.Print("5:")
-	//		fmt.Println(ot.Header().Ttl)
-	//		fmt.Println(".........................")
-	//	}
+	fmt.Print("o.string(): ")
+	fmt.Println(o.String())
+	return o
 
-	if r_opt := r.IsEdns0(); r_opt != nil {
-		//		fmt.Print("Return edns0subnet msg: ")
-		//		fmt.Println(r.Extra)
-		//		fmt.Println("------------")
-		for _, ot1 := range r_opt.Option {
-			fmt.Println(ot1.Option())
-			if ot1.Option() == dns.EDNS0SUBNET || ot1.Option() == dns.EDNS0SUBNETDRAFT {
-
-				et = ot1.(*dns.EDNS0_SUBNET)
-				//				fmt.Println(et.Address)
-				//				fmt.Println(et.Code)
-				//				fmt.Println(et.DraftOption)
-				//				fmt.Println(et.Option())
-				//				fmt.Println(et.SourceNetmask)
-				//				fmt.Println(et.SourceScope)
-				//				fmt.Println(et.Family)
-			} else {
-				et = nil
-			}
-		}
-		//		fmt.Println("===============")
-		//		fmt.Print("1:")
-		//		fmt.Println(r_opt)
-		//		fmt.Print("2:")
-		//		fmt.Println(r_opt.Hdr)
-		//		fmt.Print("3:")
-		//		fmt.Println(r_opt.Option)
-		//		fmt.Println("^^^^^^^^^^^^^^")
-
-	} else {
-		et = nil
-		//		fmt.Println("Not retuen edns0subnet msg")
-
-	}
-
-	for _, a := range r.Answer {
-		if aa, ok := a.(*dns.A); ok {
-			//			fmt.Println(dns.Field(aa, 1))
-			a_rr = append(a_rr, dns.Field(aa, 1))
-		}
-	}
-
-	return a_rr, et, nil
-}
-
-func PackEdns0Subnet(ip string, sourcenetmask uint8, sourcescope uint8) *dns.EDNS0_SUBNET {
-	edns0 := new(dns.EDNS0_SUBNET)
-	edns0.Code = dns.EDNS0SUBNET
-	edns0.SourceScope = sourcescope
-	edns0.Address = net.ParseIP(ip).To4()
-	edns0.SourceNetmask = sourcenetmask
-	edns0.Family = 1
-	return edns0
 }
 
 func UnpackEdns0Subnet(opt *dns.OPT) {
 
 }
-
-func Test(domain string, edns0ip string, dc *Domain) {
-	fmt.Print("DNS Server: ")
-	fmt.Println(dc.AuthoritativeServers[0])
-	fmt.Print("Request domain: ")
-	fmt.Println(domain)
-
-	edns0 := PackEdns0Subnet(edns0ip, 32, 0)
-	fmt.Println("-------------------------------------")
-	fmt.Print("Request edns0 subnet pack: ")
-	fmt.Println(edns0)
-	fmt.Println("-------------------------------------")
-	m, et, e := QueryA(dns.Fqdn(domain), dc, edns0)
-	if e != nil {
-		fmt.Println(e)
-	}
-	fmt.Println("-------------------------------------")
-	fmt.Print("Return DNS A Record: ")
-	fmt.Println(m)
-	fmt.Println("Return ends0subnet :")
-	fmt.Println(et)
-
-}
-
-//func doQuery(domain string, aNameServers []string) []string {
-//	return "hello,world"
-//}
-
-//func main() {
-//	var ns_server, query_domain, subnet_ip string
-//	flag.StringVar(&ns_server, "ns", "8.8.8.8", "The name server which will be queried ")
-//	flag.StringVar(&query_domain, "q", "api.weibo.cn", "The domain name which will be queried")
-//	flag.StringVar(&subnet_ip, "ip", "8.8.8.8", "The edns0_subnet address which will be used")
-
-//	flag.Parse()
-
-//	fmt.Println(">>>ns == " + ns_server)
-//	fmt.Println(">>> q == " + query_domain)
-//	fmt.Println(">>>ip == " + subnet_ip)
-
-//	cf := new(dns.ClientConfig)
-//	cf.Servers = append(cf.Servers, ns_server)
-//	cf.Port = "53"
-
-//	Test(ns_server, query_domain, subnet_ip, cf)
-
-//}
