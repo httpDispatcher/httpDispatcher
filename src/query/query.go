@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 	"utils"
 
 	"net"
 
 	"github.com/miekg/dns"
+)
+
+const (
+	DOMAIN_MAX_LABEL = 16
 )
 
 const (
@@ -87,11 +92,31 @@ func ParseNS(ns []dns.RR) ([]string, uint32, error) {
 	return ns_rr, ttl, nil
 }
 
+func LoopForQueryNS(d string) ([]string, error) {
+	if _, ok := dns.IsDomainName(d); !ok {
+		return nil, errors.New(d + " is not a domain name")
+	}
+	r := dns.SplitDomainName(d)
+
+	if cap(r) > DOMAIN_MAX_LABEL {
+		return nil, errors.New(d + " is too long")
+	}
+	var ns_arr []string = nil
+	for (cap(r) > 1) && (cap(ns_arr) < 1) {
+		ra, e := QueryNS(strings.Join(r, "."))
+		if e != nil {
+			continue
+		}
+		arr, _, _ := ParseNS(ra)
+		ns_arr = append(ns_arr, arr...)
+		if cap(ns_arr) < 1 {
+			r = r[1:]
+		}
+	}
+	return ns_arr, nil
+}
+
 func QueryNS(d string) ([]dns.RR, error) {
-
-	fmt.Println("domain:" + d)
-
-	var r_arr []dns.RR = nil
 
 	//@TODO: randow cf.Servers for load banlance
 	ds, dp, e := GetDomainConfig(d)
@@ -102,19 +127,16 @@ func QueryNS(d string) ([]dns.RR, error) {
 	}
 
 	r, e := GeneralQuery(d, ds, dp, dns.TypeNS, nil)
-	fmt.Println("rrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-	fmt.Println(r)
-	fmt.Println("eeeeeeeeeeeeeeeeeeeeeeeeeeee")
 	if e != nil {
 		return nil, e
 	}
-	if len(r.Ns) > 0 {
-		r_arr = append(r_arr, r.Ns...)
-	}
-	if len(r.Answer) > 0 {
-		r_arr = append(r_arr, r.Answer...)
-	}
-	return r_arr, nil
+	//	if len(r.Ns) > 0 {
+	//		r_arr = append(r_arr, r.Ns...)
+	//	}
+	//	if len(r.Answer) > 0 {
+	//		r_arr = append(r_arr, r.Answer...)
+	//	}
+	return r.Answer, nil
 }
 
 func QueryCNAME(d string, isEdns0 bool) {
@@ -138,7 +160,7 @@ func QueryCNAME(d string, isEdns0 bool) {
 	}
 	if r.Rcode == 0 && r.Truncated == false {
 		//		for _, r_t := range r.Answer {
-
+		fmt.Println(r.Answer)
 		//		}
 	} else {
 		fmt.Print("r.Rcode:")

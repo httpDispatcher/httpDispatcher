@@ -18,6 +18,16 @@ type DomainConfig struct {
 	Ttl                  string
 }
 
+type Domain struct {
+	name       string
+	ns         DomainNS
+	rrTree     *DomainRRTree
+	regionRtee ReginonTree
+	ttl        uint32
+}
+
+type DomainNS *dns.NS
+
 var DomainTree *rbtree.Tree
 var once sync.Once
 
@@ -53,9 +63,9 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, error) {
 	case "ww2.sinaimg.cn.":
 		ds = "ns1.sina.com.cn."
 		//	case "weiboimg.gslb.sinaedge.com.":
-		//		ds = "ns4.sinaedge.com."
+		//		ds = "ns1.sinaedge.com."
 		//	case "weiboimg.grid.sinaedge.com.":
-		//		ds = "ns4.sinaedge.com."
+		//		ds = "ns1.sinaedge.com."
 	case "api.weibo.cn.":
 		ds = "ns1.sina.com.cn."
 

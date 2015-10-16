@@ -17,7 +17,7 @@ func CheckIPv4(ip string) {
 }
 
 func GetClientIP() string {
-	return "106.185.48.28"
+	return "124.207.129.171"
 }
 
 func InitUitls() {

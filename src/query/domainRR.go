@@ -1,22 +1,23 @@
 package query
 
-import (
-	"strings"
+import "github.com/yasushi-saito/rbtree"
 
-	"github.com/yasushi-saito/rbtree"
-	//	"sync"
-)
+//	"sync"
+
+type RR interface {
+}
 
 type DomainRR struct {
 	rr     []string
-	domain *DomainConfig
+	domain *Domain
+	region *NetworkRegion
 }
 
-var DomainRRTree *rbtree.Tree
+type DomainRRTree *rbtree.Tree
 
 //var once sync.Once
 
-func NewDomainRR(d *DomainConfig, r []string) *DomainRR {
+func NewDomainRR(d *Domain, r []string) *DomainRR {
 	return &DomainRR{domain: d, rr: r}
 }
 
@@ -32,21 +33,21 @@ func (dr *DomainRR) GetRR() []string {
 	return dr.rr
 }
 
-func (dr *DomainRR) GetDomain() *DomainConfig {
+func (dr *DomainRR) GetDomain() *Domain {
 	return dr.domain
 }
 
-func InitDomainRRTree() *rbtree.Tree {
-	//	if DomainRRTree == nil {
-	//		DomainRRTree = rbtree.NewTree(func(a, b rbtree.Item) int {
-	//			return strings.Compare(a.(DomainRR).domain.DomainName, b.(DomainRR).domain.DomainName)
-	//		})
-	//	}
+//func InitDomainRRTree() *rbtree.Tree {
+//	//	if DomainRRTree == nil {
+//	//		DomainRRTree = rbtree.NewTree(func(a, b rbtree.Item) int {
+//	//			return strings.Compare(a.(DomainRR).domain.DomainName, b.(DomainRR).domain.DomainName)
+//	//		})
+//	//	}
 
-	once.Do(func() {
-		DomainRRTree = rbtree.NewTree(func(a, b rbtree.Item) int {
-			return strings.Compare(a.(DomainRR).domain.DomainName, b.(DomainRR).domain.DomainName)
-		})
-	})
-	return DomainRRTree
-}
+//	once.Do(func() {
+//		DomainRRTree = rbtree.NewTree(func(a, b rbtree.Item) int {
+//			return strings.Compare(a.(DomainRR).domain.DomainName, b.(DomainRR).domain.DomainName)
+//		})
+//	})
+//	return DomainRRTree
+//}
