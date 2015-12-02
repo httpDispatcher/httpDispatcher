@@ -1,7 +1,6 @@
 package query
 
 import (
-	"fmt"
 	"github.com/miekg/dns"
 	"reflect"
 	"testing"
@@ -20,7 +19,7 @@ var ttlmap = map[string]uint32{
 
 func Test_preQuery(t *testing.T) {
 	d := "ww2.sinaimg.cn."
-	e, ds, dp, o := preQuery(d, false)
+	ds, dp, o, e := preQuery(d, false)
 	if e != nil {
 		t.Fatal()
 	}
@@ -35,7 +34,7 @@ func Test_preQuery(t *testing.T) {
 	}
 
 	d = "www.baidu.com"
-	e, ds, dp, o = preQuery(d, true)
+	ds, dp, o, e = preQuery(d, true)
 	if e != nil {
 		t.Fatal()
 	}
@@ -60,7 +59,7 @@ func Test_preQuery(t *testing.T) {
 	}
 
 	d = "www.a.shifen.com"
-	e, ds, dp, o = preQuery(d, true)
+	ds, dp, o, e = preQuery(d, true)
 	if e != nil {
 		t.Log(e.Msg)
 		t.Fatal()
@@ -90,7 +89,7 @@ func TestPackEdns0SubnetOPT(t *testing.T) {
 	var sc = uint8(0)
 	var ip = "124.207.129.171"
 	o := PackEdns0SubnetOPT(ip, sm, sc)
-	fmt.Println(o)
+	t.Log(o)
 	if o.Hdr.Name != "." {
 		t.Log(o.Hdr.Name)
 		t.Fatal()
@@ -110,7 +109,7 @@ func TestPackEdns0SubnetOPT(t *testing.T) {
 }
 
 func testQueryCNAME(t *testing.T, d string) {
-	e, cname_a, edns_h, edns_a := QueryCNAME(d, true)
+	cname_a, edns_h, edns_a, e := QueryCNAME(d, true)
 	if e != nil {
 		t.Log(e)
 		t.Fatal()
@@ -185,8 +184,35 @@ func TestQueryNS(t *testing.T) {
 	testQueryNS("sinaedge.com", t)
 }
 
+func testLoopforqueryns(d string, t *testing.T) {
+	ns_a, e := LoopForQueryNS(d)
+	t.Log(cap(ns_a))
+	t.Log((e == nil) && (cap(ns_a) > 0))
+	if (e == nil) && (cap(ns_a) > 0) {
+		for _, ns := range ns_a {
+			t.Log(reflect.TypeOf(ns))
+			t.Log(ns.Hdr.Name)
+			t.Log(ns.Hdr.Rrtype)
+			t.Log(ns.Hdr.Class)
+			t.Log(ns.Hdr.Rdlength)
+			t.Log(ns.Hdr.Ttl)
+			t.Log(ns.Ns)
+		}
+	} else {
+		t.Log(ns_a)
+		t.Log(e)
+		t.Fail()
+	}
+}
+
 func TestLoopForQueryNS(t *testing.T) {
-	ns_a, e := LoopForQueryNS("weiboimg.gslb.sinaedge.com")
-	t.Log(ns_a)
-	t.Log(e)
+	testLoopforqueryns("weiboimg.gslb.sinaedge.com", t)
+	testLoopforqueryns("ww2.sinaimg.cn", t)
+	testLoopforqueryns("api.weibo.cn", t)
+	//	testLoopforqueryns("weiboimg.",t)
+	testLoopforqueryns("img.alicdn.com.danuoyi.alicdn.com.", t)
+}
+
+func TestQueryA(t *testing.T) {
+	//	a_a,
 }

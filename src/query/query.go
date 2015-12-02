@@ -59,9 +59,9 @@ func DoQuery(
 	queryType uint16,
 	queryOpt *dns.OPT, t string) (*dns.Msg, *MyError.MyError) {
 
-	fmt.Println("++++++++begin ds dp+++++++++")
-	fmt.Println(domainResolverIP + "......" + domainResolverPort + "  .......")
-	fmt.Println("++++++++end ds dp+++++++++")
+	//	fmt.Println("++++++++begin ds dp+++++++++")
+	//	fmt.Println(domainResolverIP + "......" + domainResolverPort + "  .......")
+	//	fmt.Println("++++++++end ds dp+++++++++")
 
 	c := &dns.Client{
 		DialTimeout:  60 * time.Second,
@@ -124,11 +124,10 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
 	r := dns.SplitDomainName(d)
-	fmt.Println(r)
 	if cap(r) > DOMAIN_MAX_LABEL {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is too long")
 	}
-	for cap(r) > 2 {
+	for cap(r) > 1 {
 		ra, e := QueryNS(strings.Join(r, "."))
 		if e != nil {
 			//TODO: Log errors
@@ -154,13 +153,13 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 //		domain name server ip
 //		domain name server port
 //		*dns.OPT (for edns0_subnet)
-func preQuery(d string, isEdns0 bool) (*MyError.MyError, string, string, *dns.OPT) {
+func preQuery(d string, isEdns0 bool) (string, string, *dns.OPT, *MyError.MyError) {
 	if _, ok := Check_DomainName(d); !ok {
-		return MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name!"), "", "", nil
+		return "", "", nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name!")
 	}
 	ds, dp, e := domain.GetDomainResolver(d)
 	if e != nil {
-		return e, "", "", nil
+		return "", "", nil, e
 	}
 
 	var o *dns.OPT
@@ -171,12 +170,12 @@ func preQuery(d string, isEdns0 bool) (*MyError.MyError, string, string, *dns.OP
 	} else {
 		o = nil
 	}
-	return nil, ds, dp, o
+	return ds, dp, o, nil
 }
 
 //
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
-	e, ds, dp, _ := preQuery(d, false)
+	ds, dp, _, e := preQuery(d, false)
 	r, e := DoQuery(d, ds, dp, dns.TypeNS, nil, UDP)
 	if (e == nil) && (cap(r.Answer) > 0) {
 		ns_a := ParseNS(r.Answer)
@@ -186,15 +185,15 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 }
 
 // Query
-func QueryCNAME(d string, isEdns0 bool) (*MyError.MyError, []*dns.CNAME, interface{}, []*dns.EDNS0_SUBNET) {
-	e, ds, dp, o := preQuery(d, isEdns0)
+func QueryCNAME(d string, isEdns0 bool) ([]*dns.CNAME, interface{}, []*dns.EDNS0_SUBNET, *MyError.MyError) {
+	ds, dp, o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeCNAME, o, UDP)
 	if e != nil {
-		return e, nil, nil, nil
+		return nil, nil, nil, e
 	}
 	ok, cname_a := ParseCNAME(r.Answer)
 	if ok != true {
-		return MyError.NewError(MyError.ERROR_NORESULT, "No CNAME record returned"), nil, nil, nil
+		return nil, nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No CNAME record returned")
 	}
 
 	var edns_header interface{}
@@ -204,7 +203,7 @@ func QueryCNAME(d string, isEdns0 bool) (*MyError.MyError, []*dns.CNAME, interfa
 			edns_header, edns_array = parseEdns0subnet(x)
 		}
 	}
-	return nil, cname_a, edns_header, edns_array
+	return cname_a, edns_header, edns_array, nil
 }
 
 func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, []*dns.EDNS0_SUBNET) {
@@ -223,15 +222,12 @@ func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, []*dns.EDNS0_SUBNET) {
 	return edns_header, edns_array
 }
 
-func QueryA(d string, isEdns0 bool) ([]dns.RR, *dns.EDNS0_SUBNET, error) {
-
-	e, ds, dp, o := preQuery(d, isEdns0)
-
+func QueryA(d string, isEdns0 bool) ([]*dns.A, interface{}, []*dns.EDNS0_SUBNET, *MyError.MyError) {
+	ds, dp, o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeA, o, UDP)
-
 	if e != nil {
 		fmt.Println(r)
-		return nil, nil, e
+		return nil, nil, nil, e
 	}
 	//	fmt.Println(r)
 	et := new(dns.EDNS0_SUBNET)
@@ -260,7 +256,7 @@ func QueryA(d string, isEdns0 bool) ([]dns.RR, *dns.EDNS0_SUBNET, error) {
 	//	fmt.Println(a_rr)
 
 	//	fmt.Println(r.Answer)
-	return r.Answer, et, nil
+	return nil, et, nil, nil
 }
 
 func UnpackAAnswer(a_rr []string, a dns.RR) ([]string, uint32) {
