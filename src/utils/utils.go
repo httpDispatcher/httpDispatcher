@@ -24,3 +24,7 @@ func InitUitls() {
 	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
 	Logger.Println("Starting httpDispacher...")
 }
+
+func UnpackIPCIDR(i string) {
+
+}
