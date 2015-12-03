@@ -95,19 +95,23 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 		ds = "ns2.baidu.com."
 	case "www.a.shifen.com.":
 		ds = "ns1.a.shifen.com."
+	case "a.shifen.com.":
+		ds = "ns1.a.shifen.com."
 	case "ww2.sinaimg.cn.":
 		ds = "ns1.sina.com.cn."
-	//	case "weiboimg.gslb.sinaedge.com.":
-	//		ds = "ns1.sinaedge.com."
-	//	case "weiboimg.grid.sinaedge.com.":
-	//		ds = "ns1.sinaedge.com."
+	case "weiboimg.gslb.sinaedge.com.":
+		ds = "ns2.sinaedge.com."
+	case "weiboimg.grid.sinaedge.com.":
+		ds = "ns1.sinaedge.com."
 	case "api.weibo.cn.":
 		ds = "ns1.sina.com.cn."
-	//	case "weiboimg.gslb.sinaedge.com.":
-	//		ds = "ns1.sinaedge.com"
+	case "img.alicdn.com.":
+		ds = "ns8.alibabaonline.com."
+	case "img.alicdn.com.danuoyi.alicdn.com.":
+		ds = "danuoyinewns1.gds.alicdn.com."
 	default:
 		if _, ok := dns.IsDomainName(domain); ok {
-			ds = "114.114.114.114"
+			ds = "8.8.8.8"
 		}
 	}
 

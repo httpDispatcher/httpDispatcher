@@ -3,6 +3,7 @@ package query
 import (
 	"MyError"
 	"domain"
+	//	"fmt"
 	"fmt"
 	"github.com/miekg/dns"
 	"net"
@@ -64,8 +65,8 @@ func DoQuery(
 	//	fmt.Println("++++++++end ds dp+++++++++")
 
 	c := &dns.Client{
-		DialTimeout:  60 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		DialTimeout:  8 * time.Second,
+		WriteTimeout: 8 * time.Second,
 		ReadTimeout:  60 * time.Second,
 		Net:          t,
 	}
@@ -81,7 +82,8 @@ func DoQuery(
 	r, _, ee := c.Exchange(m, domainResolverIP+":"+domainResolverPort)
 
 	if ee != nil {
-		fmt.Println(ee.Error())
+		//		fmt.Println("errrororororororororo:")
+		//		fmt.Println(ee.Error())
 		//		os.Exit(1)
 		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
 	}
@@ -94,7 +96,6 @@ func ParseCNAME(c []dns.RR) (bool, []*dns.CNAME) {
 	var cname_a []*dns.CNAME
 	for _, a := range c {
 		if cname, ok := a.(*dns.CNAME); ok {
-			//						fmt.Println("CNAME Found!: " + cname.Hdr.Name + " <--> " + cname.Target)
 			cname_a = append(cname_a, cname)
 		}
 	}
@@ -105,16 +106,30 @@ func ParseCNAME(c []dns.RR) (bool, []*dns.CNAME) {
 }
 
 // Parse dns.Msg.Answer in dns response msg that use TypeNS as request type.
-func ParseNS(ns []dns.RR) []*dns.NS {
+func ParseNS(ns []dns.RR) (bool, []*dns.NS) {
 	var ns_rr []*dns.NS
-	if cap(ns) > 0 {
-		for _, n_s := range ns {
-			if x, ok := n_s.(*dns.NS); ok {
-				ns_rr = append(ns_rr, x)
-			}
+	for _, n_s := range ns {
+		if x, ok := n_s.(*dns.NS); ok {
+			ns_rr = append(ns_rr, x)
 		}
 	}
-	return ns_rr
+	if cap(ns_rr) > 0 {
+		return true, ns_rr
+	}
+	return false, nil
+}
+
+func ParseA(a []dns.RR) (bool, []*dns.A) {
+	var a_rr []*dns.A
+	for _, aa := range a {
+		if x, ok := aa.(*dns.A); ok {
+			a_rr = append(a_rr, x)
+		}
+	}
+	if cap(a_rr) > 0 {
+		return true, a_rr
+	}
+	return false, nil
 }
 
 // Loop For Query the domain name d's NS servers
@@ -178,120 +193,73 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	ds, dp, _, e := preQuery(d, false)
 	r, e := DoQuery(d, ds, dp, dns.TypeNS, nil, UDP)
 	if (e == nil) && (cap(r.Answer) > 0) {
-		ns_a := ParseNS(r.Answer)
-		return ns_a, nil
+		b, ns_a := ParseNS(r.Answer)
+		if b != false {
+			return ns_a, nil
+		} else {
+			return nil, MyError.NewError(MyError.ERROR_NORESULT, "ParseNS() has no result returned")
+		}
+
 	}
 	return nil, e
 }
 
 // Query
-func QueryCNAME(d string, isEdns0 bool) ([]*dns.CNAME, interface{}, []*dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryCNAME(d string, isEdns0 bool) ([]*dns.CNAME, interface{}, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	ds, dp, o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeCNAME, o, UDP)
 	if e != nil {
 		return nil, nil, nil, e
 	}
+	fmt.Println(r)
+	fmt.Println(e)
 	ok, cname_a := ParseCNAME(r.Answer)
 	if ok != true {
 		return nil, nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No CNAME record returned")
 	}
 
 	var edns_header interface{}
-	var edns_array []*dns.EDNS0_SUBNET
+	var edns *dns.EDNS0_SUBNET
 	if isEdns0 {
 		if x := r.IsEdns0(); x != nil {
-			edns_header, edns_array = parseEdns0subnet(x)
+			edns_header, edns = parseEdns0subnet(x)
 		}
 	}
-	return cname_a, edns_header, edns_array, nil
+	return cname_a, edns_header, edns, nil
 }
 
-func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, []*dns.EDNS0_SUBNET) {
+func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
 
 	if edns_opt == nil {
 		return nil, nil
 	}
-	edns_header, edns_array := UnpackEdns0Subnet(edns_opt)
-	if cap(edns_array) == 0 {
-		//TODO: if edns_array is empty,that mean:
-		//	1. server does not support edns0_subnet
-		//  2. this domain does not configure as edns0_subnet support
-		//  3. ADD function default edns0_subnet_fill() ??
-		edns_array = nil
-	}
-	return edns_header, edns_array
+	edns_header, edns := UnpackEdns0Subnet(edns_opt)
+	//	if cap(edns) == 0 {
+	//		//TODO: if edns_array is empty,that mean:
+	//		//	1. server does not support edns0_subnet
+	//		//  2. this domain does not configure as edns0_subnet support
+	//		//  3. ADD function default edns0_subnet_fill() ??
+	//		edns = nil
+	//	}
+	return edns_header, edns
 }
 
-func QueryA(d string, isEdns0 bool) ([]*dns.A, interface{}, []*dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryA(d string, isEdns0 bool) ([]dns.RR, interface{}, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	ds, dp, o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeA, o, UDP)
 	if e != nil {
-		fmt.Println(r)
+		//		fmt.Println(r)
 		return nil, nil, nil, e
 	}
-	//	fmt.Println(r)
-	et := new(dns.EDNS0_SUBNET)
-
+	var edns_header interface{}
+	var edns *dns.EDNS0_SUBNET
 	if isEdns0 {
-		if r_opt := r.IsEdns0(); r_opt != nil {
-			for _, ot1 := range r_opt.Option {
-				if ot1.Option() == dns.EDNS0SUBNET || ot1.Option() == dns.EDNS0SUBNETDRAFT {
-					et = ot1.(*dns.EDNS0_SUBNET)
-				} else {
-					et = nil
-				}
-			}
-		} else {
-			et = nil
+		if x := r.IsEdns0(); x != nil {
+			edns_header, edns = parseEdns0subnet(x)
 		}
 	}
-	fmt.Print("r.Answer:")
-	fmt.Println(r.Answer)
-	//	for _, a := range r.Answer {
-	//		fmt.Println(reflect.TypeOf(a))
-	//		if aa, ok := a.(*dns.A); ok {
-	//			a_rr = append(a_rr, dns.Field(aa, 1))
-	//		}
-	//	}
-	//	fmt.Println(a_rr)
-
-	//	fmt.Println(r.Answer)
-	return nil, et, nil, nil
+	return r.Answer, edns_header, edns, nil
 }
-
-func UnpackAAnswer(a_rr []string, a dns.RR) ([]string, uint32) {
-	var ttl uint32 = 0
-	if aa, ok := a.(*dns.A); ok {
-		a_rr = append(a_rr, aa.A.To4().String())
-		if ttl == 0 {
-			ttl = aa.Hdr.Ttl
-		}
-	}
-	return a_rr, ttl
-}
-
-//func ParseA(answer []dns.RR) ([]string, uint32, error) {
-//	var a_rr []string
-//	var ttl uint32 = 0
-//	fmt.Print("dns.IsRRset(answer):")
-//	fmt.Println(dns.IsRRset(answer))
-//
-//		fmt.Println(reflect.TypeOf(a))
-//		switch a.Header().Rrtype {
-//		case dns.TypeCNAME:
-//			{
-//				fmt.Print("dns.TypeCNAME :")
-//				fmt.Println(a.String())
-//			}
-//		case dns.TypeA:
-//			{
-//
-//				a_rr, ttl = UnpackAAnswer(a_rr, a)
-//			}
-//		}
-//	return a_rr, ttl, nil
-//
-//}
 
 func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 	edns0subnet := &dns.EDNS0_SUBNET{
@@ -311,7 +279,7 @@ func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 	return o
 }
 
-// Unpack Edns0Subnet OPT to []*dns.EDNS0_SUBNET
+// func UnpackEdns0Subnet() Unpack Edns0Subnet OPT to []*dns.EDNS0_SUBNET
 // if is not dns.EDNS0_SUBNET type ,return nil .
 //
 ///*
@@ -343,13 +311,14 @@ func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 //		fmt.Println("no edns0")
 //	}
 // */
-func UnpackEdns0Subnet(opt *dns.OPT) (interface{}, []*dns.EDNS0_SUBNET) {
-	var re []*dns.EDNS0_SUBNET = nil
+//TODO: edns_h and edns (*dns.EDNS0_SUBNET) can be combined into a struct
+func UnpackEdns0Subnet(opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
+	var re *dns.EDNS0_SUBNET = nil
 	if cap(opt.Option) > 0 {
 		for _, v := range opt.Option {
 			if vo := v.Option(); vo == dns.EDNS0SUBNET || vo == dns.EDNS0SUBNETDRAFT {
-				if oo := v.(*dns.EDNS0_SUBNET); oo != nil {
-					re = append(re, oo)
+				if oo, ok := v.(*dns.EDNS0_SUBNET); ok {
+					re = oo
 				}
 			}
 		}

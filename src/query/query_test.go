@@ -21,28 +21,28 @@ func Test_preQuery(t *testing.T) {
 	d := "ww2.sinaimg.cn."
 	ds, dp, o, e := preQuery(d, false)
 	if e != nil {
-		t.Fatal()
+		t.Fail()
 	}
 	if ds != "ns1.sina.com.cn." {
-		t.Fatal()
+		t.Fail()
 	}
 	if dp != "53" {
-		t.Fatal()
+		t.Fail()
 	}
 	if o != nil {
-		t.Fatal()
+		t.Fail()
 	}
 
 	d = "www.baidu.com"
 	ds, dp, o, e = preQuery(d, true)
 	if e != nil {
-		t.Fatal()
+		t.Fail()
 	}
 	if ds != "ns2.baidu.com." {
-		t.Fatal()
+		t.Fail()
 	}
 	if dp != "53" {
-		t.Fatal()
+		t.Fail()
 	}
 	//	t.Log(e)
 	//	t.Log(ds)
@@ -51,31 +51,31 @@ func Test_preQuery(t *testing.T) {
 	if o.Hdr.Name != "." {
 		t.Log(o.Hdr.Name)
 		t.Log("a")
-		t.Fatal()
+		t.Fail()
 	}
 	if o.Option[0].(*dns.EDNS0_SUBNET).Code != dns.EDNS0SUBNET {
 		t.Log("b")
-		t.Fatal()
+		t.Fail()
 	}
 
 	d = "www.a.shifen.com"
 	ds, dp, o, e = preQuery(d, true)
 	if e != nil {
 		t.Log(e.Msg)
-		t.Fatal()
+		t.Fail()
 	}
 	if o.Hdr.Rrtype != dns.TypeOPT {
 		t.Log(o)
-		t.Fatal()
+		t.Fail()
 	}
 	if cap(o.Option) != 1 {
 		t.Log(o.Option)
-		t.Fatal()
+		t.Fail()
 	}
 	x := o.Option[0].(*dns.EDNS0_SUBNET)
 	if x == nil {
 		t.Log(o.Option)
-		t.Fatal()
+		t.Fail()
 	} else {
 		//		fmt.Println(x.Address)
 		//		fmt.Println(x.Code)
@@ -92,68 +92,67 @@ func TestPackEdns0SubnetOPT(t *testing.T) {
 	t.Log(o)
 	if o.Hdr.Name != "." {
 		t.Log(o.Hdr.Name)
-		t.Fatal()
+		t.Fail()
 	}
 	if o.Hdr.Rrtype != dns.TypeOPT {
 		t.Log(o.Hdr.Name)
-		t.Fatal()
+		t.Fail()
 	}
 	if o.Option[0].(*dns.EDNS0_SUBNET).SourceNetmask != sm {
 		t.Log(o.Option[0].(*dns.EDNS0_SUBNET).SourceNetmask)
-		t.Fatal()
+		t.Fail()
 	}
 	if o.Option[0].(*dns.EDNS0_SUBNET).SourceScope != sc {
 		t.Log(o.Option[0].(*dns.EDNS0_SUBNET).SourceScope)
-		t.Fatal()
+		t.Fail()
 	}
 }
 
 func testQueryCNAME(t *testing.T, d string) {
-	cname_a, edns_h, edns_a, e := QueryCNAME(d, true)
+	t.Log(d)
+	cname_a, edns_h, edns, e := QueryCNAME(d, true)
 	if e != nil {
 		t.Log(e)
-		t.Fatal()
+		t.Fail()
 	}
 	if cap(cname_a) < 1 {
 		t.Log("... cap(cname_a) < 1")
-		t.Fatal()
+		t.Fail()
 	}
 	t.Log(cname_a)
 	for _, c := range cname_a {
 		t.Log(reflect.TypeOf(c))
 		t.Log(c.Hdr.Name)
 		if c.Hdr.Name != dns.Fqdn(d) {
-			t.Fatal()
+			t.Fail()
 		}
-		t.Log("......")
 		t.Log(c.Hdr.Rrtype)
 		if c.Hdr.Rrtype != dns.TypeCNAME {
-			t.Fatal()
+			t.Fail()
 		}
-		t.Log("......")
 		t.Log(c.Hdr.Ttl)
 		if c.Hdr.Ttl > ttlmap[d] {
 			t.Log(ttlmap[d])
-			t.Fatal()
+			t.Fail()
 		}
-		t.Log("......")
 		t.Log(d)
 		t.Log(c.Target)
 		t.Log(dns.Fqdn(cnamemap[d]))
 		if dns.Fqdn(c.Target) != dns.Fqdn(cnamemap[d]) {
-			t.Fatal()
+			t.Fail()
 		}
-
+		t.Log("......................")
 	}
 	if edns_h != nil {
 		t.Log("edns_h")
 		t.Log(edns_h)
 		t.Log(edns_h.(dns.RR_Header).Rrtype)
 	}
-	if cap(edns_a) > 0 {
-		t.Log("edns_a")
-		t.Log(edns_a)
+	if edns != nil {
+		t.Log("edns")
+		t.Log(edns)
 	}
+	t.Log("++++++++++++++++++++++++++++++")
 }
 
 func TestQueryCNAME(t *testing.T) {
@@ -174,12 +173,16 @@ func testQueryNS(d string, t *testing.T) {
 			t.Log(x.Ns)
 		}
 	} else {
+		t.Log(d)
+		t.Log(cap(n))
 		t.Log(e)
-		t.Fatal()
+		t.Fail()
 	}
 }
 
 func TestQueryNS(t *testing.T) {
+	testQueryNS("a.shifen.com", t)
+	testQueryA("img.alicdn.com", t)
 	testQueryNS("sinaimg.cn", t)
 	testQueryNS("sinaedge.com", t)
 }
@@ -211,8 +214,85 @@ func TestLoopForQueryNS(t *testing.T) {
 	testLoopforqueryns("api.weibo.cn", t)
 	//	testLoopforqueryns("weiboimg.",t)
 	testLoopforqueryns("img.alicdn.com.danuoyi.alicdn.com.", t)
+	testLoopforqueryns("www.a.shifen.com", t)
 }
 
 func TestQueryA(t *testing.T) {
-	//	a_a,
+	testQueryA("www.a.shifen.com", t)
+	testQueryA("www.baidu.com", t)
+	testQueryA("ww2.sinaimg.cn", t)
+	testQueryA("img.alicdn.com.danuoyi.alicdn.com", t)
+	testQueryA("img.alicdn.com", t)
+}
+
+func testQueryA(d string, t *testing.T) {
+	t.Log(d)
+	a_a, edns_h, edns, e := QueryA(d, true)
+
+	if e != nil {
+		t.Log(e)
+		t.Fail()
+	} else {
+		t.Log(a_a)
+
+	}
+
+	if cap(a_a) <= 0 {
+		t.Log(reflect.TypeOf(a_a))
+		t.Fail()
+	} else {
+		for _, v := range a_a {
+			t.Log(reflect.TypeOf(v))
+			t.Log(v)
+			switch v.Header().Rrtype {
+			case dns.TypeA:
+				if vv, ok := v.(*dns.A); ok {
+					t.Log(vv.Hdr.Name)
+					t.Log(vv.Hdr.Ttl)
+					t.Log(vv.Hdr.Rrtype)
+					t.Log(vv.Hdr.Class)
+					t.Log(vv.Hdr.Rdlength)
+					t.Log(vv.A)
+
+				} else {
+					t.Log(vv)
+					t.Fail()
+				}
+				t.Log("------------------")
+			case dns.TypeCNAME:
+				if cc, ok := v.(*dns.CNAME); ok {
+					t.Log(cc.Hdr.Name)
+					t.Log(cc.Hdr.Rrtype)
+					t.Log(cc.Hdr.Class)
+					t.Log(cc.Hdr.Ttl)
+					t.Log(cc.Hdr.Rdlength)
+					t.Log(cc.Target)
+
+				} else {
+					t.Log(cc)
+					t.Fail()
+				}
+				t.Log("*********************")
+			default:
+				t.Log(v.String())
+				t.Fail()
+			}
+			t.Log("======================")
+		}
+	}
+	t.Log(reflect.TypeOf(edns_h))
+	if edns_header, ok := edns_h.(dns.RR_Header); ok {
+		t.Log(edns_header.Name)
+		t.Log(edns_header.Rrtype)
+		t.Log(edns_header.Ttl)
+		t.Log(edns_header.Rdlength)
+		t.Log(edns_header.Class)
+	} else {
+		t.Log("edns_h is not dns.RR_Header type")
+		t.Log(reflect.TypeOf(edns_h))
+		//		t.Fail()
+	}
+	t.Log(edns)
+	t.Log("++++++++++++++++++++++++++++++++++++++++++")
+
 }
