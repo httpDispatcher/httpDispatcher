@@ -2,8 +2,6 @@ package query
 
 import (
 	"MyError"
-	"domain"
-	//	"fmt"
 	"fmt"
 	"github.com/miekg/dns"
 	"net"
@@ -172,7 +170,7 @@ func preQuery(d string, isEdns0 bool) (string, string, *dns.OPT, *MyError.MyErro
 	if _, ok := Check_DomainName(d); !ok {
 		return "", "", nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name!")
 	}
-	ds, dp, e := domain.GetDomainResolver(d)
+	ds, dp, e := GetDomainResolver(d)
 	if e != nil {
 		return "", "", nil, e
 	}
@@ -326,4 +324,53 @@ func UnpackEdns0Subnet(opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
 		return opt.Hdr, re
 	}
 	return nil, nil
+}
+
+//@TODO: randow cf.Servers for load banlance
+func GetDomainResolver(domainName string) (string, string, *MyError.MyError) {
+	if _, ok := dns.IsDomainName(domainName); !ok {
+		return "", "", MyError.NewError(MyError.ERROR_PARAM, "Parma is not a domain name : "+domainName)
+	}
+	domainResolverIP, domainResolverPort, e := GetDomainConfigFromDomainTree(domainName)
+	if (e != nil) && (e.ErrorNo == MyError.ERROR_NORESULT) {
+		//TODO: 后台获取 domainName 的 Resolver 信息,并存储
+		//QueryNS()
+		domainResolverIP = "114.114.114.114"
+		domainResolverPort = "53"
+
+	} else {
+		//		return "", "", e
+	}
+	return domainResolverIP, domainResolverPort, nil
+}
+
+func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyError) {
+	var ds, dp string
+	dp = "53"
+	domain = dns.Fqdn(domain)
+	switch domain {
+	case "www.baidu.com.":
+		ds = "ns2.baidu.com."
+	case "www.a.shifen.com.":
+		ds = "ns1.a.shifen.com."
+	case "a.shifen.com.":
+		ds = "ns1.a.shifen.com."
+	case "ww2.sinaimg.cn.":
+		ds = "ns1.sina.com.cn."
+	case "weiboimg.gslb.sinaedge.com.":
+		ds = "ns2.sinaedge.com."
+	case "weiboimg.grid.sinaedge.com.":
+		ds = "ns1.sinaedge.com."
+	case "api.weibo.cn.":
+		ds = "ns1.sina.com.cn."
+	case "img.alicdn.com.":
+		ds = "ns8.alibabaonline.com."
+	case "img.alicdn.com.danuoyi.alicdn.com.":
+		ds = "danuoyinewns1.gds.alicdn.com."
+	default:
+		if _, ok := dns.IsDomainName(domain); ok {
+			ds = "8.8.8.8"
+		}
+	}
+	return ds, dp, nil
 }
