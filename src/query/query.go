@@ -3,11 +3,12 @@ package query
 import (
 	"MyError"
 	"fmt"
-	"github.com/miekg/dns"
 	"net"
 	"strings"
 	"time"
 	"utils"
+
+	"github.com/miekg/dns"
 )
 
 const (
@@ -61,7 +62,6 @@ func DoQuery(
 	//	fmt.Println("++++++++begin ds dp+++++++++")
 	//	fmt.Println(domainResolverIP + "......" + domainResolverPort + "  .......")
 	//	fmt.Println("++++++++end ds dp+++++++++")
-
 	c := &dns.Client{
 		DialTimeout:  8 * time.Second,
 		WriteTimeout: 8 * time.Second,
@@ -130,6 +130,17 @@ func ParseA(a []dns.RR) (bool, []*dns.A) {
 	return false, nil
 }
 
+func GenerateParentDomain(d string) (string, *MyError.MyError) {
+	x := dns.SplitDomainName(d)
+	if cap(x) > 1 {
+		fmt.Println(x)
+		return strings.Join(x[1:], "."), nil
+	} else {
+		return d, MyError.NewError(MyError.ERROR_NORESULT, d+" has no subdomain")
+	}
+	return d, MyError.NewError(MyError.ERROR_UNKNOWN, d+" unknown error")
+}
+
 // Loop For Query the domain name d's NS servers
 // if d has no NS server, Loop for the parent domain's name server
 func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
@@ -156,6 +167,100 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 		}
 	}
 	return nil, MyError.NewError(MyError.ERROR_NORESULT, "Loop find Ns for Domain name "+d+" No Result")
+}
+
+func QuerySOA(d string) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
+	if _, ok := Check_DomainName(d); !ok {
+		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
+	}
+	cf, el := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if el != nil {
+		return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Get dns config from file /etc/resolv.conf failed")
+	}
+
+	var soa_a []*dns.SOA
+	var ns_a []*dns.NS
+	for c := 0; (cap(soa_a) < 1) && (c < 3); c++ {
+
+		fmt.Print("c:===== ")
+		fmt.Println(c)
+
+		soa_a, ns_a = nil, nil
+		r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeSOA, nil, UDP)
+		//		fmt.Println(r.Ns)
+		if e != nil {
+			c++
+			fmt.Println(e)
+			continue
+		} else {
+			var rr []dns.RR
+			rr = append(rr, r.Answer...)
+			rr = append(rr, r.Ns...)
+			soa_a, ns_a, e = ParseSOA(d, rr)
+			if e != nil {
+				switch e.ErrorNo {
+				case MyError.ERROR_SUBDOMAIN:
+					var ee *MyError.MyError
+					d, ee = GenerateParentDomain(d)
+					if ee != nil {
+						if ee.ErrorNo == MyError.ERROR_NORESULT {
+							fmt.Println(ee)
+							//							continue
+						}
+						return nil, nil, MyError.NewError(MyError.ERROR_NORESULT,
+							d+" has no SOA record "+" because of "+ee.Error())
+					}
+					continue
+				case MyError.ERROR_NORESULT:
+					c++
+					fmt.Println(e)
+					fmt.Println("+++++++++++++++++++++++++++++++++++")
+					continue
+				default:
+					c++
+					fmt.Println(".....................")
+					fmt.Println(e)
+					//					return nil, nil, e
+				}
+			} else {
+
+				fmt.Println("============================")
+				return soa_a, ns_a, nil
+			}
+		}
+	}
+	return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, d+" QuerySOA faild with unknow error")
+}
+
+func ParseSOA(d string, r []dns.RR) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
+	var soa_a []*dns.SOA
+	var ns_a []*dns.NS
+	for _, v := range r {
+		vh := v.Header()
+		if vh.Name == dns.Fqdn(d) || dns.IsSubDomain(vh.Name, dns.Fqdn(d)) {
+			switch vh.Rrtype {
+			case dns.TypeSOA:
+				if vv, ok := v.(*dns.SOA); ok {
+					soa_a = append(soa_a, vv)
+				}
+			case dns.TypeNS:
+				if vv, ok := v.(*dns.NS); ok {
+					ns_a = append(ns_a, vv)
+				}
+			default:
+				fmt.Println(v)
+			}
+		} else {
+			fmt.Println(vh.Name + " not match " + d)
+			return nil, nil, MyError.NewError(MyError.ERROR_SUBDOMAIN, d+" has no SOA record,try parent")
+		}
+
+	}
+	if cap(soa_a) > 0 {
+		return soa_a, ns_a, nil
+	} else {
+		return nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No SOA record for domain "+d)
+	}
 }
 
 // Preparation for Query A and CNAME / NS record.
@@ -188,8 +293,9 @@ func preQuery(d string, isEdns0 bool) (string, string, *dns.OPT, *MyError.MyErro
 
 //
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
-	ds, dp, _, e := preQuery(d, false)
-	r, e := DoQuery(d, ds, dp, dns.TypeNS, nil, UDP)
+	//	ds, dp, _, e := preQuery(d, false)
+	cf, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
+	r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, UDP)
 	if (e == nil) && (cap(r.Answer) > 0) {
 		b, ns_a := ParseNS(r.Answer)
 		if b != false {
