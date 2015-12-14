@@ -169,7 +169,7 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	return nil, MyError.NewError(MyError.ERROR_NORESULT, "Loop find Ns for Domain name "+d+" No Result")
 }
 
-func QuerySOA(d string) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
+func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	if _, ok := Check_DomainName(d); !ok {
 		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
@@ -178,25 +178,21 @@ func QuerySOA(d string) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
 		return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Get dns config from file /etc/resolv.conf failed")
 	}
 
-	var soa_a []*dns.SOA
+	var soa *dns.SOA
 	var ns_a []*dns.NS
-	for c := 0; (cap(soa_a) < 1) && (c < 3); c++ {
+	for c := 0; (soa == nil) && (c < 3); c++ {
 
-		fmt.Print("c:===== ")
-		fmt.Println(c)
-
-		soa_a, ns_a = nil, nil
+		soa, ns_a = nil, nil
 		r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeSOA, nil, UDP)
 		//		fmt.Println(r.Ns)
 		if e != nil {
 			c++
-			fmt.Println(e)
 			continue
 		} else {
 			var rr []dns.RR
 			rr = append(rr, r.Answer...)
 			rr = append(rr, r.Ns...)
-			soa_a, ns_a, e = ParseSOA(d, rr)
+			soa, ns_a, e = ParseSOA(d, rr)
 			if e != nil {
 				switch e.ErrorNo {
 				case MyError.ERROR_SUBDOMAIN:
@@ -223,17 +219,22 @@ func QuerySOA(d string) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
 					//					return nil, nil, e
 				}
 			} else {
-
-				fmt.Println("============================")
-				return soa_a, ns_a, nil
+				if cap(ns_a) < 1 {
+					ns_a, e = QueryNS(soa.Hdr.Name)
+					if e != nil {
+						//TODO: do some log
+					}
+				}
+				fmt.Println("============xxxxxx================")
+				return soa, ns_a, nil
 			}
 		}
 	}
 	return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, d+" QuerySOA faild with unknow error")
 }
 
-func ParseSOA(d string, r []dns.RR) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
-	var soa_a []*dns.SOA
+func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
+	var soa *dns.SOA
 	var ns_a []*dns.NS
 	for _, v := range r {
 		vh := v.Header()
@@ -241,7 +242,8 @@ func ParseSOA(d string, r []dns.RR) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
 			switch vh.Rrtype {
 			case dns.TypeSOA:
 				if vv, ok := v.(*dns.SOA); ok {
-					soa_a = append(soa_a, vv)
+					fmt.Println(vv)
+					soa = vv
 				}
 			case dns.TypeNS:
 				if vv, ok := v.(*dns.NS); ok {
@@ -256,8 +258,8 @@ func ParseSOA(d string, r []dns.RR) ([]*dns.SOA, []*dns.NS, *MyError.MyError) {
 		}
 
 	}
-	if cap(soa_a) > 0 {
-		return soa_a, ns_a, nil
+	if soa != nil {
+		return soa, ns_a, nil
 	} else {
 		return nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No SOA record for domain "+d)
 	}
