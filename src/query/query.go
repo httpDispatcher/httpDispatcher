@@ -133,7 +133,7 @@ func ParseA(a []dns.RR) (bool, []*dns.A) {
 func GenerateParentDomain(d string) (string, *MyError.MyError) {
 	x := dns.SplitDomainName(d)
 	if cap(x) > 1 {
-		fmt.Println(x)
+		//		fmt.Println(x)
 		return strings.Join(x[1:], "."), nil
 	} else {
 		return d, MyError.NewError(MyError.ERROR_NORESULT, d+" has no subdomain")
@@ -184,9 +184,9 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 
 		soa, ns_a = nil, nil
 		r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeSOA, nil, UDP)
-		//		fmt.Println(r.Ns)
+		//		fmt.Println(r)
 		if e != nil {
-			c++
+			//			c++
 			continue
 		} else {
 			var rr []dns.RR
@@ -195,12 +195,12 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			soa, ns_a, e = ParseSOA(d, rr)
 			if e != nil {
 				switch e.ErrorNo {
-				case MyError.ERROR_SUBDOMAIN:
+				case MyError.ERROR_SUBDOMAIN, MyError.ERROR_NOTVALID:
 					var ee *MyError.MyError
 					d, ee = GenerateParentDomain(d)
 					if ee != nil {
 						if ee.ErrorNo == MyError.ERROR_NORESULT {
-							fmt.Println(ee)
+							//							fmt.Println(ee)
 							//							continue
 						}
 						return nil, nil, MyError.NewError(MyError.ERROR_NORESULT,
@@ -208,24 +208,30 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					}
 					continue
 				case MyError.ERROR_NORESULT:
-					c++
+					//					c++
+					fmt.Print("QuerySOA line 212: ")
 					fmt.Println(e)
 					fmt.Println("+++++++++++++++++++++++++++++++++++")
 					continue
 				default:
-					c++
+					//					c++
+					fmt.Print("QuerySOA line 218: ")
 					fmt.Println(".....................")
 					fmt.Println(e)
+					continue
 					//					return nil, nil, e
 				}
 			} else {
 				if cap(ns_a) < 1 {
+					fmt.Print("QuerySOA: line 223 ")
 					ns_a, e = QueryNS(soa.Hdr.Name)
 					if e != nil {
 						//TODO: do some log
 					}
 				}
-				fmt.Println("============xxxxxx================")
+				//				fmt.Println("============xxxxxx================")
+				fmt.Print("QuerySOA: line 230 ")
+				fmt.Println(soa, "\n", ns_a)
 				return soa, ns_a, nil
 			}
 		}
@@ -242,6 +248,7 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			switch vh.Rrtype {
 			case dns.TypeSOA:
 				if vv, ok := v.(*dns.SOA); ok {
+					fmt.Print("ParseSOA:line 245 ")
 					fmt.Println(vv)
 					soa = vv
 				}
@@ -250,11 +257,13 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					ns_a = append(ns_a, vv)
 				}
 			default:
+				fmt.Print("PasreSOA: line 254 ")
 				fmt.Println(v)
 			}
 		} else {
+			fmt.Print("ParseSOA 258 ")
 			fmt.Println(vh.Name + " not match " + d)
-			return nil, nil, MyError.NewError(MyError.ERROR_SUBDOMAIN, d+" has no SOA record,try parent")
+			return nil, nil, MyError.NewError(MyError.ERROR_NOTVALID, d+" has no SOA record,try parent")
 		}
 
 	}
@@ -297,15 +306,19 @@ func preQuery(d string, isEdns0 bool) (string, string, *dns.OPT, *MyError.MyErro
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	//	ds, dp, _, e := preQuery(d, false)
 	cf, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
-	r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, UDP)
-	if (e == nil) && (cap(r.Answer) > 0) {
-		b, ns_a := ParseNS(r.Answer)
-		if b != false {
-			return ns_a, nil
-		} else {
-			return nil, MyError.NewError(MyError.ERROR_NORESULT, "ParseNS() has no result returned")
-		}
+	e := &MyError.MyError{}
+	r := &dns.Msg{}
+	for c := 0; (c < 3) && cap(r.Answer) < 1; c++ {
+		r, e = DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, UDP)
+		if (e == nil) && (cap(r.Answer) > 0) {
+			b, ns_a := ParseNS(r.Answer)
+			if b != false {
+				return ns_a, nil
+			} else {
+				return nil, MyError.NewError(MyError.ERROR_NORESULT, "ParseNS() has no result returned")
+			}
 
+		}
 	}
 	return nil, e
 }
