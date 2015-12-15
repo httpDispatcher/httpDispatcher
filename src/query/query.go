@@ -77,13 +77,18 @@ func DoQuery(
 	if queryOpt != nil {
 		m.Extra = append(m.Extra, queryOpt)
 	}
-	r, _, ee := c.Exchange(m, domainResolverIP+":"+domainResolverPort)
-
-	if ee != nil {
-		//		fmt.Println("errrororororororororo:")
-		//		fmt.Println(ee.Error())
-		//		os.Exit(1)
-		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
+	r := &dns.Msg{}
+	ee := error()
+	for l := 0; l < 3; l++ {
+		r, _, ee = c.Exchange(m, domainResolverIP+":"+domainResolverPort)
+		if ee != nil && l > 3 {
+			//		fmt.Println("errrororororororororo:")
+			fmt.Println(ee.Error())
+			//		os.Exit(1)
+			if l > 3 {
+				return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
+			}
+		}
 	}
 	return r, nil
 }
