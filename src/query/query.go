@@ -78,7 +78,7 @@ func DoQuery(
 		m.Extra = append(m.Extra, queryOpt)
 	}
 	r := &dns.Msg{}
-	ee := error()
+	var ee error
 	for l := 0; l < 3; l++ {
 		r, _, ee = c.Exchange(m, domainResolverIP+":"+domainResolverPort)
 		if ee != nil && l > 3 {
