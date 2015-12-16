@@ -81,11 +81,11 @@ func DoQuery(
 	var ee error
 	for l := 0; l < 3; l++ {
 		r, _, ee = c.Exchange(m, domainResolverIP+":"+domainResolverPort)
-		if ee != nil && l > 3 {
+		if ee != nil {
 			//		fmt.Println("errrororororororororo:")
 			fmt.Println(ee.Error())
 			//		os.Exit(1)
-			if l > 3 {
+			if l >= 2 {
 				return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
 			}
 		}
@@ -195,8 +195,12 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			continue
 		} else {
 			var rr []dns.RR
-			rr = append(rr, r.Answer...)
-			rr = append(rr, r.Ns...)
+			if r.Answer != nil {
+				rr = append(rr, r.Answer...)
+			}
+			if r.Ns != nil {
+				rr = append(rr, r.Ns...)
+			}
 			soa, ns_a, e = ParseSOA(d, rr)
 			if e != nil {
 				switch e.ErrorNo {
@@ -371,7 +375,7 @@ func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
 func QueryA(d string, isEdns0 bool) ([]dns.RR, interface{}, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	ds, dp, o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeA, o, UDP)
-	if e != nil {
+	if e != nil || r == nil {
 		//		fmt.Println(r)
 		return nil, nil, nil, e
 	}
