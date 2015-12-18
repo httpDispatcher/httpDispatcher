@@ -65,7 +65,7 @@ func DoQuery(
 	c := &dns.Client{
 		DialTimeout:  8 * time.Second,
 		WriteTimeout: 8 * time.Second,
-		ReadTimeout:  60 * time.Second,
+		ReadTimeout:  32 * time.Second,
 		Net:          t,
 	}
 
@@ -357,7 +357,7 @@ func QueryCNAME(d string, isEdns0 bool, ds, dp string) ([]*dns.CNAME, interface{
 	return cname_a, edns_header, edns, nil
 }
 
-func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
+func parseEdns0subnet(edns_opt *dns.OPT) (*dns.RR_Header, *dns.EDNS0_SUBNET) {
 
 	if edns_opt == nil {
 		return nil, nil
@@ -373,14 +373,14 @@ func parseEdns0subnet(edns_opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
 	return edns_header, edns
 }
 
-func QueryA(d string, isEdns0 bool, ds, dp string) ([]dns.RR, interface{}, *dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryA(d string, isEdns0 bool, ds, dp string) ([]dns.RR, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeA, o, UDP)
 	if e != nil || r == nil {
 		//		fmt.Println(r)
 		return nil, nil, nil, e
 	}
-	var edns_header interface{}
+	var edns_header *dns.RR_Header
 	var edns *dns.EDNS0_SUBNET
 	if isEdns0 {
 		if x := r.IsEdns0(); x != nil {
@@ -441,7 +441,7 @@ func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 //	}
 // */
 //TODO: edns_h and edns (*dns.EDNS0_SUBNET) can be combined into a struct
-func UnpackEdns0Subnet(opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
+func UnpackEdns0Subnet(opt *dns.OPT) (*dns.RR_Header, *dns.EDNS0_SUBNET) {
 	var re *dns.EDNS0_SUBNET = nil
 	if cap(opt.Option) > 0 {
 		for _, v := range opt.Option {
@@ -452,7 +452,7 @@ func UnpackEdns0Subnet(opt *dns.OPT) (interface{}, *dns.EDNS0_SUBNET) {
 			}
 		}
 		//TODO: consider Do not return opt.Hdr ??
-		return opt.Hdr, re
+		return &opt.Hdr, re
 	}
 	return nil, nil
 }
