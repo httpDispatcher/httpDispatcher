@@ -41,6 +41,9 @@ func InitUitls() {
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	fmt.Println(network)
 	//	os.Exit(2)
+	if network == nil {
+		return net.IPv4(0, 0, 0, 0), net.IPv4(0, 0, 0, 0)
+	}
 	netIP := network.IP.To4()
 	firstIP := netIP.Mask(network.Mask)
 	lastIP := net.IPv4(0, 0, 0, 0).To4()
@@ -51,12 +54,12 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 }
 
 // Converts a 4 bytes IP into a 32 bit integer
-func Ip4ToInt32(ip net.IP) int32 {
-	return int32(binary.BigEndian.Uint32(ip.To4()))
+func Ip4ToInt32(ip net.IP) uint32 {
+	return uint32(binary.BigEndian.Uint32(ip.To4()))
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
-func Int32ToIP4(n int32) net.IP {
+func Int32ToIP4(n uint32) net.IP {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
 	return net.IP(b)
@@ -94,4 +97,15 @@ func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.
 	}
 	m := net.CIDRMask(n, 8*iplen)
 	return &net.IPNet{IP: ip.Mask(m), Mask: m}, nil
+}
+
+func IpNetToInt32(ipnet *net.IPNet) (uint32, uint32) {
+	//	ai, bi := uint32(0), uint32(0)
+	if ipnet == nil {
+		return uint32(0), uint32(0)
+	}
+	a, b := NetworkRange(ipnet)
+	ai := uint32(Ip4ToInt32(a))
+	bi := uint32(Ip4ToInt32(b))
+	return ai, bi
 }
