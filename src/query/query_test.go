@@ -111,7 +111,7 @@ func TestPackEdns0SubnetOPT(t *testing.T) {
 
 func testQueryCNAME(t *testing.T, d string) {
 	t.Log(d)
-	cname_a, edns_h, edns, e := QueryCNAME(d, true, "124.124.124.124", "53")
+	cname_a, edns_h, edns, e := QueryCNAME(d, true, "114.114.114.114", "53")
 	if e != nil {
 		t.Log(e)
 		t.Fail()
@@ -146,8 +146,8 @@ func testQueryCNAME(t *testing.T, d string) {
 	}
 	if edns_h != nil {
 		t.Log("edns_h")
-		t.Log(edns_h)
-		t.Log(edns_h.(dns.RR_Header).Rrtype)
+		t.Log(edns_h.Name)
+		t.Log(edns_h.Rrtype)
 	}
 	if edns != nil {
 		t.Log("edns")
@@ -229,7 +229,7 @@ func TestQueryA(t *testing.T) {
 
 func testQueryA(d string, t *testing.T) {
 	t.Log(d)
-	a_a, edns_h, edns, e := QueryA(d, true, "124.124.124.124", "53")
+	a_a, edns_h, edns, e := QueryA(d, true, "114.114.114.114", "53")
 
 	if e != nil {
 		t.Log(e)
@@ -283,16 +283,12 @@ func testQueryA(d string, t *testing.T) {
 		}
 	}
 	t.Log(reflect.TypeOf(edns_h))
-	if edns_header, ok := edns_h.(dns.RR_Header); ok {
-		t.Log(edns_header.Name)
-		t.Log(edns_header.Rrtype)
-		t.Log(edns_header.Ttl)
-		t.Log(edns_header.Rdlength)
-		t.Log(edns_header.Class)
-	} else {
-		t.Log("edns_h is not dns.RR_Header type")
-		t.Log(reflect.TypeOf(edns_h))
-		//		t.Fail()
+	if edns_h != nil {
+		t.Log(edns_h.Name)
+		t.Log(edns_h.Rrtype)
+		t.Log(edns_h.Ttl)
+		t.Log(edns_h.Rdlength)
+		t.Log(edns_h.Class)
 	}
 	t.Log(edns)
 	t.Log("++++++++++++++++++++++++++++++++++++++++++")

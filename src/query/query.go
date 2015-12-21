@@ -334,7 +334,7 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 }
 
 // Query
-func QueryCNAME(d string, isEdns0 bool, ds, dp string) ([]*dns.CNAME, interface{}, *dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryCNAME(d string, isEdns0 bool, ds, dp string) ([]*dns.CNAME, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	o, e := preQuery(d, isEdns0)
 	r, e := DoQuery(d, ds, dp, dns.TypeCNAME, o, UDP)
 	if e != nil {
@@ -347,7 +347,7 @@ func QueryCNAME(d string, isEdns0 bool, ds, dp string) ([]*dns.CNAME, interface{
 		return nil, nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No CNAME record returned")
 	}
 
-	var edns_header interface{}
+	var edns_header *dns.RR_Header
 	var edns *dns.EDNS0_SUBNET
 	if isEdns0 {
 		if x := r.IsEdns0(); x != nil {
