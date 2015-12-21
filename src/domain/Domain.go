@@ -3,9 +3,12 @@ package domain
 import (
 	"MyError"
 	"fmt"
+	"net"
 	"os"
 	"query"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,14 +25,23 @@ type MuLLRB struct {
 }
 
 type MubitRadix struct {
-	bitradix.Radix32
+	Radix32 *bitradix.Radix32
 	sync.Mutex
 }
+
+//For domain name and Region RR
+type DomainRRTree MuLLRB
+
+//For domain SOA and NS record
+type DomainSOATree MuLLRB
+
+//For domain Region and A/CNAME record
+type RegionTree MubitRadix
 
 //TODO: redundant data types, need to be redesign
 type Domain struct {
 	DomainName string
-	SOA        string
+	SOAKey     string // Use this key to search DomainSOANode in DomainSOATree,to find out the NS record
 	TTL        uint32
 }
 
@@ -51,9 +63,9 @@ type Region struct {
 }
 
 type DomainSOANode struct {
-	DomainName string
-	NS         []*dns.NS
-	SOA        *dns.SOA
+	SOAKey string // store SOA record first field,not the full domain name,but only the "dig -t SOA domain" resoponse
+	NS     []*dns.NS
+	SOA    *dns.SOA
 }
 
 type DomainConfig struct {
@@ -63,30 +75,43 @@ type DomainConfig struct {
 	Ttl                  string
 }
 
-//For domain name and Region RR
-type DomainRRTree MuLLRB
-
-//For domain SOA and NS record
-type DomainSOATree MuLLRB
-
-//For domain Region and A/CNAME record
-type RegionTree MubitRadix
-
 var once sync.Once
-var DomainRRDB *DomainRRTree
-var DomainSOADB *DomainSOATree
+
+//DomainRRCache for Domain A/CNAME record
+var DomainRRCache *DomainRRTree
+
+//DomainSOACache for Domain soa/cname record
+var DomainSOACache *DomainSOATree
+
+//if you want to search a A/CNAME record for a domain 'domainname',you should:
+//First: search a DomainNode in domainRRCache and get domain region tree
+// with DomainNode.RegionTree, and than get the record in the region tree
+//Second: if there is no DomainNode in DomainRRCache, you should get DomainSOANode in
+// DomainSOACache and get NS with DomainSOANode.NS. Notice that ,DomainSOANode.NS is
+// a slice of *dns.NS.
+//Third: Use query.QueryA with the one name server in DomainSOANode.NS.
+//Notice: you should store all the infoformation when it is not in the trees(
+// Both DomainSOACache and DomainRRCache )
 
 func init() {
-	errdb := InitDB()
+	errCache := InitCache()
 
-	if errdb == nil {
-		fmt.Println("InitDomainRRDB OK")
-		fmt.Println("InitDomainSOADB OK")
+	if errCache == nil {
+		fmt.Println("InitDomainRRCache OK")
+		fmt.Println("InitDomainSOACache OK")
 	} else {
-		fmt.Println("InitDomainRRDB() or InitDomainSOADB() failed")
+		fmt.Println("InitDomainRRCache() or InitDomainSOACache() failed")
 		os.Exit(2)
 	}
 
+}
+
+func InitCache() *MyError.MyError {
+	once.Do(func() {
+		DomainRRCache = &DomainRRTree{}
+		DomainSOACache = &DomainSOATree{}
+	})
+	return nil
 }
 
 func (a *DomainNode) Less(b llrb.Item) bool {
@@ -97,6 +122,7 @@ func (a *DomainNode) Less(b llrb.Item) bool {
 	}
 	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b: "+reflect.ValueOf(b).String()))
 }
+
 func (a *Domain) Less(b llrb.Item) bool {
 	if x, ok := b.(*DomainNode); ok {
 		return a.DomainName < x.DomainName
@@ -106,45 +132,36 @@ func (a *Domain) Less(b llrb.Item) bool {
 	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b: "+reflect.ValueOf(b).String()))
 }
 
-func InitDB() *MyError.MyError {
-	once.Do(func() {
-		DomainRRDB = &DomainRRTree{}
-		DomainSOADB = &DomainSOATree{}
-	})
-	return nil
-}
-
-//func InitDomainSOADB() *MyError.MyError {
-//	once.Do(func() {
-//		DomainSOADB = &DomainSOATree{}
-//	})
-//	return nil
-//}
-
-// 1,Trust d.DomainName is really a DomainName, so, don't use dns.IsDomainName for checking
+// 1,Trust d.DomainName is really a DomainName, so, have not use dns.IsDomainName for checking
 // Check if d is already in the DomainRRTree,if so,make sure update d.DomainRegionTree = dt.DomainRegionTree
-func (DT *DomainRRTree) StoreDomainNode(d *DomainNode) (bool, *MyError.MyError) {
-	if dt, err := DT.SearchDomainNodeWithName(d.DomainName); dt != nil && err == nil {
-		fmt.Println("DomainRRTree already has DomainNode of d " + reflect.ValueOf(dt).String())
+func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.MyError) {
+	if dt, err := DT.GetDomainNodeFromCacheWithName(d.DomainName); dt != nil && err == nil {
+		fmt.Println("DomainRRCache already has DomainNode of d " + d.DomainName)
 		d.DomainRegionTree = dt.DomainRegionTree
+
+	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
+		// for not found and type error, we should replace the node
+		fmt.Println(err)
+		return false, err
 	}
+
 	DT.Mutex.Lock()
 	DT.LLRB.ReplaceOrInsert(d)
 	DT.Mutex.Unlock()
 	return true, nil
 }
 
-func (DT *DomainRRTree) SearchDomainNodeWithName(d string) (*DomainNode, *MyError.MyError) {
+func (DT *DomainRRTree) GetDomainNodeFromCacheWithName(d string) (*DomainNode, *MyError.MyError) {
 	if _, ok := dns.IsDomainName(d); ok {
 		dn := &Domain{
 			DomainName: dns.Fqdn(d),
 		}
-		return DT.SearchDomainNode(dn)
+		return DT.GetDomainNodeFromCache(dn)
 	}
 	return nil, MyError.NewError(MyError.ERROR_PARAM, "Eorror param: "+reflect.ValueOf(d).String())
 }
 
-func (DT *DomainRRTree) SearchDomainNode(d *Domain) (*DomainNode, *MyError.MyError) {
+func (DT *DomainRRTree) GetDomainNodeFromCache(d *Domain) (*DomainNode, *MyError.MyError) {
 	dr := DT.LLRB.Get(d)
 	if dr != nil {
 		if drr, ok := dr.(*DomainNode); ok {
@@ -153,19 +170,25 @@ func (DT *DomainRRTree) SearchDomainNode(d *Domain) (*DomainNode, *MyError.MyErr
 			return nil, MyError.NewError(MyError.ERROR_TYPE, "Got error result because of the type of return value is "+reflect.TypeOf(dr).String())
 		}
 	} else {
-		return nil, MyError.NewError(MyError.ERROR_NORESULT, "Got no result for param: "+reflect.ValueOf(d).String())
+		return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found from DomainRRTree for param: "+reflect.ValueOf(d.DomainName).String())
 	}
 	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "SearchDomainNode got param: "+reflect.ValueOf(d).String())
 }
 
 func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError) {
 	if _, ok := query.Check_DomainName(d.DomainName); ok {
-		if dt, err := DT.SearchDomainNodeWithName(d.DomainName); dt != nil && err == nil {
+		if dt, err := DT.GetDomainNodeFromCache(d.Domain); dt != nil && err == nil {
 			d.DomainRegionTree = dt.DomainRegionTree
 			DT.Mutex.Lock()
-			DT.LLRB.ReplaceOrInsert(d)
+			r := DT.LLRB.ReplaceOrInsert(d)
 			DT.Mutex.Unlock()
-			return true, nil
+			if r != nil {
+				return true, nil
+
+			} else {
+				//Exception:see source code of "LLRB.ReplaceOrInsert"
+				return true, MyError.NewError(MyError.ERROR_UNKNOWN, "Update error, but inserted")
+			}
 		} else {
 			return false, MyError.NewError(MyError.ERROR_NOTFOUND, "DomainRRTree does not has "+reflect.ValueOf(d).String()+" or it has "+reflect.ValueOf(dt).String())
 		}
@@ -177,98 +200,78 @@ func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError)
 
 //Use interface{} as param ,  may refact other func as this
 //TODO: this func has not been completed,don't use it
-func (DT *DomainRRTree) DelDomainNode(d interface{}) (bool, *MyError.MyError) {
-	var e *MyError.MyError
-	var dd *DomainNode
-	t := reflect.TypeOf(d).Kind()
-	fmt.Println(t)
-	switch t {
-	case reflect.String:
-		if ds, ok := d.(string); ok {
-			if _, ok := query.Check_DomainName(ds); ok {
-
-				dd, e = NewDomainNode(ds, "", 0)
-			}
-		} else {
-			return false, MyError.NewError(MyError.ERROR_PARAM, "Error in type of param "+reflect.ValueOf(d).String())
-		}
-	case reflect.TypeOf(&Domain{}).Kind():
-	case reflect.TypeOf(&DomainNode{}).Kind():
-	default:
-		fmt.Println("fdjlsjflsjdlfj")
-	}
-
-	if e == nil {
-		DT.Mutex.Lock()
-		r := DT.LLRB.Delete(dd)
-		DT.Mutex.Unlock()
-		if r != nil {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-	return false, nil
+func (DT *DomainRRTree) DelDomainNode(d *Domain) (bool, *MyError.MyError) {
+	DT.Mutex.Lock()
+	r := DT.LLRB.Delete(d)
+	DT.Mutex.Unlock()
+	fmt.Println("Delete " + d.DomainName + " from DomainRRCache " + reflect.ValueOf(r).String())
+	return true, nil
 }
 
 func InitDomainSOANode(d string,
 	soa *dns.SOA,
 	ns_a []*dns.NS) *DomainSOANode {
 	return &DomainSOANode{
-		DomainName: d,
-		NS:         ns_a,
-		SOA:        soa,
+		SOAKey: d,
+		NS:     ns_a,
+		SOA:    soa,
 	}
 }
 
-func (a *DomainSOANode) Less(b llrb.Item) bool {
+func (DS *DomainSOANode) Less(b llrb.Item) bool {
 	if x, ok := b.(*DomainSOANode); ok {
-		return a.DomainName < x.DomainName
+		return DS.SOAKey < x.SOAKey
 	}
 	panic(MyError.NewError(MyError.ERROR_PARAM, "Param b "+reflect.ValueOf(b).String()+" is not valid DomainSOANode or String"))
 }
 
-func (ST *DomainSOATree) StoreDomainSOANode(dsn *DomainSOANode) (bool, *MyError.MyError) {
+func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *MyError.MyError) {
+	if dt, err := ST.GetDomainSOANodeFromCache(dsn); dt != nil && err == nil {
+		fmt.Println("DomainSOACache already has DomainSOANode of dsn " + dsn.SOAKey)
+	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
+		// for not found and type error, we should replace the node
+		fmt.Println(err)
+		return false, err
+	}
+
 	ST.Mutex.Lock()
 	ST.LLRB.ReplaceOrInsert(dsn)
 	ST.Mutex.Unlock()
+	fmt.Println("Store " + dsn.SOAKey + " into DomainSOACache Done!")
 	return true, nil
 }
 
-func (ST *DomainSOATree) GetDomainSOANode(dsn *DomainSOANode) (*DomainSOANode, *MyError.MyError) {
-	dt := ST.LLRB.Get(dsn)
-	if dsn_r, ok := dt.(*DomainSOANode); ok {
-		return dsn_r, nil
+func (ST *DomainSOATree) GetDomainSOANodeFromCache(dsn *DomainSOANode) (*DomainSOANode, *MyError.MyError) {
+	if dt := ST.LLRB.Get(dsn); dt != nil {
+		if dsn_r, ok := dt.(*DomainSOANode); ok {
+			return dsn_r, nil
+		} else {
+			return nil, MyError.NewError(MyError.ERROR_TYPE, "ERROR_TYPE")
+		}
 	} else {
-		return nil, MyError.NewError(MyError.ERROR_TYPE, "ERROR_TYPE")
+		return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found soa record via domainname "+dsn.SOAKey)
 	}
+	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown Error!")
 }
 
-func (ST *DomainSOATree) SearchDomainSOANodeWithDomainName(d string) (*DomainSOANode, *MyError.MyError) {
+func (ST *DomainSOATree) GetDomainSOANodeFromCacheWithDomainName(d string) (*DomainSOANode, *MyError.MyError) {
 	ds := &DomainSOANode{
-		DomainName: dns.Fqdn(d),
+		SOAKey: dns.Fqdn(d),
 	}
-	fmt.Println(ds)
-	fmt.Println(ST)
-	//	dsn := ST.LLRB.Get(ds)
-	//	if dsn != nil{
-	//		if dsn_r,ok := dsn.(*DomainSOANode); ok{
-	//			return dsn_r, nil
-	//		}else{
-	//			fmt.Println(dsn)
-	//		}
-	//		return nil,MyError.NewError(MyError.ERROR_UNKNOWN,"DomainSOATree returned Not DomainSOANode Type OBJ,the value of returned is " + reflect.ValueOf(dsn).String())
-	//	}
-	return nil, MyError.NewError(MyError.ERROR_NORESULT, "Returned no result")
+	return ST.GetDomainSOANodeFromCache(ds)
 }
 
-func (ST *DomainSOATree) UpdateDomainSOANode(ds *DomainSOANode) *MyError.MyError {
-	ST.LLRB.ReplaceOrInsert(ds)
-	return nil
-}
+//func (ST *DomainSOATree) UpdateDomainSOANode(ds *DomainSOANode) *MyError.MyError {
+//
+//	ST.LLRB.ReplaceOrInsert(ds)
+//	return nil
+//}
 
+//todo:have not completed
 func (ST *DomainSOATree) DelDomainSOANode(ds *DomainSOANode) *MyError.MyError {
+	ST.Mutex.Lock()
 	ST.LLRB.Delete(ds)
+	ST.Mutex.Unlock()
 	return nil
 }
 
@@ -281,12 +284,75 @@ func (a *DomainNode) InitRegionTree() (bool, *MyError.MyError) {
 
 func initDomainRegionTree() *RegionTree {
 	//	tbitRadix := bitradix.New32()
-	return &RegionTree{}
+	return &RegionTree{
+		Radix32: bitradix.New32(),
+	}
 }
 
-func (RT *RegionTree) SearchRegion(addr uint32) {
-	r := RT.Radix32.Find(addr, radix_bit)
-	fmt.Println(r)
+func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) {
+	return RT.GetRegionFromCacheWithAddr(r.NetWorkAddr)
+}
+
+func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32) (*Region, *MyError.MyError) {
+	if r := RT.Radix32.Find(addr, radix_bit); r != nil {
+		fmt.Println(r.Value)
+		if rr, ok := r.Value.(*Region); ok {
+			return rr, nil
+		} else {
+			return nil, MyError.NewError(MyError.ERROR_NOTVALID, "Found result but not valid,need check !")
+		}
+	} else {
+		return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found result")
+	}
+	return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found search region "+string(addr))
+}
+
+//Todo: need check wheather this region.NetWorkAddr is in Cache Radix tree,but the IpStart and IpEnd are not same as r
+// thus, you need to split the region
+func CheckRegionFromCache(r *Region) bool {
+	if len(r.RR) < 1 {
+		return false
+	}
+
+	return true
+}
+
+func (RT *RegionTree) AddRegionToCache(r *Region) bool {
+	if ok := CheckRegionFromCache(r); !ok {
+		//Todo: add split region logic
+	}
+	RT.Mutex.Lock()
+	RT.Radix32.Insert(r.NetWorkAddr, radix_bit, r)
+	RT.Mutex.Unlock()
+	return true
+}
+
+func (RT *RegionTree) UpdateRegionToCache(r *Region) bool {
+	if rnode := RT.Radix32.Find(r.NetWorkAddr, radix_bit); rnode != nil {
+		RT.Mutex.Lock()
+		RT.Radix32.Remove(r.NetWorkAddr, radix_bit)
+		RT.Radix32.Insert(r.NetWorkAddr, radix_bit, r)
+		RT.Mutex.Unlock()
+	} else {
+		RT.AddRegionToCache(r)
+	}
+	return true
+}
+
+func (RT *RegionTree) DelRegionFromCache(r *Region) (bool, *MyError.MyError) {
+	if rnode, e := RT.GetRegionFromCache(r); rnode != nil && e == nil {
+		RT.Mutex.Lock()
+		RT.Radix32.Remove(r.NetWorkAddr, radix_bit)
+		RT.Mutex.Unlock()
+		fmt.Println("Remove Region from RegionCache " + string(r.NetWorkAddr))
+		return true, nil
+	} else {
+		return true, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found Region from RegionCache")
+	}
+
+}
+
+func (RT *RegionTree) TraverseRegionTree() {
 	RT.Radix32.Do(func(r1 *bitradix.Radix32, i int) {
 		fmt.Println(r1.Key(),
 			r1.Value,
@@ -295,21 +361,11 @@ func (RT *RegionTree) SearchRegion(addr uint32) {
 	})
 }
 
-func (RT *RegionTree) AddRegion(r *Region) {
-
-}
-
-func (RT *RegionTree) UpdateRegion(d *Domain, r *Region) {
-
-}
-
-func (RT *RegionTree) DelRegion(d *Domain, r *Region) {
-
-}
-
 func NewRegion(r []dns.RR, networkAddr, ipStart, ipEnd uint32) (*Region, *MyError.MyError) {
-	if cap(r) < 1 {
-		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less then 1 ")
+	if len(r) < 1 {
+		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
+	} else {
+		fmt.Println("NewRegion: line 314 ", cap(r))
 	}
 	// When the default region for a domain, the networkAddr and ipStart/ipEnd will be 0
 	//	if (networkAddr == 0) || (ipStart == 0) || (ipEnd == 0) {
@@ -327,21 +383,38 @@ func NewRegion(r []dns.RR, networkAddr, ipStart, ipEnd uint32) (*Region, *MyErro
 	return dr, nil
 }
 
-func NewDomainNode(d string, soa string, t uint32) (*DomainNode, *MyError.MyError) {
+func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyError) {
 	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not valid domain name")
 	}
-	//	if ns != nil {
-	//		for _,n := range ns {
-	//			fmt.Println(n)
-	//		}
-	//	}
 	return &DomainNode{
 		Domain: Domain{
 			DomainName: dns.Fqdn(d),
-			SOA:        soa,
+			SOAKey:     soakey,
 			TTL:        t,
 		},
 		DomainRegionTree: nil,
 	}, nil
+}
+
+func GeneralDNSBackendQuery(d string, srcIP string) ([]dns.RR, *net.IPNet, *MyError.MyError) {
+	_, ns, e := query.QuerySOA(d)
+	if e != nil || cap(ns) < 1 {
+		return nil, nil, e
+	}
+	a_rr, _, edns, e := query.QueryA(d, true, ns[0].Ns, "53")
+	if e != nil || cap(a_rr) < 1 {
+		return nil, nil, e
+	}
+
+	//	var ipnet *net.IPNet
+	if edns != nil {
+		_, ipnet, ee := net.ParseCIDR(strings.Join([]string{edns.Address.String(), strconv.Itoa(int(edns.SourceScope))}, "/"))
+		if ee == nil {
+			return a_rr, ipnet, nil
+		} else {
+			return a_rr, nil, MyError.NewError(MyError.ERROR_NOTVALID, ee.Error())
+		}
+	}
+	return a_rr, nil, e
 }
