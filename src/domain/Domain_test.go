@@ -54,7 +54,7 @@ func TestQueryDomainSOAandNS(t *testing.T) {
 				t.Log("Got in DomainSOADB for " + soa.Hdr.Name)
 				t.Log(soa_n)
 			} else {
-				b, e := DomainSOACache.StoreDomainSOANode(soa_t)
+				b, e := DomainSOACache.StoreDomainSOANodeToCache(soa_t)
 				if b == true && e == nil {
 					t.Log("DomainSOADB stored ", soa_t)
 				} else {
