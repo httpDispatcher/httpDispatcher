@@ -29,6 +29,23 @@ func InitUitls() {
 	Logger.Println("Starting httpDispacher...")
 }
 
+// Bigger than we need, not too big to worry about overflow
+const big = 0xFFFFFF
+
+func dtoi(s string, i0 int) (n int, i int, ok bool) {
+	n = 0
+	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+		n = n*10 + int(s[i]-'0')
+		if n >= big {
+			return 0, i, false
+		}
+	}
+	if i == i0 {
+		return 0, i, false
+	}
+	return n, i, true
+}
+
 //func IP4toInt(IPv4Address net.IP) int64 {
 //	IPv4Int := big.NewInt(0)
 //
@@ -38,6 +55,7 @@ func InitUitls() {
 //	return IPv4Int.Int64()
 //}
 
+//Convert net.IPNet to  startIP & endIP
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	fmt.Println(network)
 	//	os.Exit(2)
@@ -65,23 +83,7 @@ func Int32ToIP4(n uint32) net.IP {
 	return net.IP(b)
 }
 
-// Bigger than we need, not too big to worry about overflow
-const big = 0xFFFFFF
-
-func dtoi(s string, i0 int) (n int, i int, ok bool) {
-	n = 0
-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i]-'0')
-		if n >= big {
-			return 0, i, false
-		}
-	}
-	if i == i0 {
-		return 0, i, false
-	}
-	return n, i, true
-}
-
+//ParseEdnsIPNet, Parse ends data to *net.IPNet
 func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.MyError) {
 	fmt.Println(mask)
 	iplen := 0
@@ -99,13 +101,17 @@ func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.
 	return &net.IPNet{IP: ip.Mask(m), Mask: m}, nil
 }
 
-func IpNetToInt32(ipnet *net.IPNet) (uint32, uint32) {
+//Parse *net.IPNet to ip(uint32) and mask(int)
+func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 	//	ai, bi := uint32(0), uint32(0)
 	if ipnet == nil {
-		return uint32(0), uint32(0)
+		return uint32(0), int(0)
 	}
-	a, b := NetworkRange(ipnet)
-	ai := uint32(Ip4ToInt32(a))
-	bi := uint32(Ip4ToInt32(b))
-	return ai, bi
+	ip = Ip4ToInt32(ipnet.IP)
+	mask, _ = ipnet.Mask.Size()
+	return ip, mask
+}
+
+func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
+
 }

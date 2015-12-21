@@ -177,7 +177,7 @@ func (DT *DomainRRTree) GetDomainNodeFromCache(d *Domain) (*DomainNode, *MyError
 
 func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError) {
 	if _, ok := query.Check_DomainName(d.DomainName); ok {
-		if dt, err := DT.GetDomainNodeFromCache(d.Domain); dt != nil && err == nil {
+		if dt, err := DT.GetDomainNodeFromCache(&d.Domain); dt != nil && err == nil {
 			d.DomainRegionTree = dt.DomainRegionTree
 			DT.Mutex.Lock()
 			r := DT.LLRB.ReplaceOrInsert(d)
