@@ -85,12 +85,12 @@ func TestNewRegion(t *testing.T) {
 
 		a_rr, ipnet, e := GeneralDNSBackendQuery(d, utils.GetClientIP())
 		t.Log(a_rr, ipnet, e)
-		ai, bi := utils.IpNetToInt32(ipnet)
+		ip, mask := utils.IpNetToInt32(ipnet)
 		if a_rr == nil {
 			t.Log("a_rr is Nil ", a_rr)
 			continue
 		}
-		r1, e := NewRegion(a_rr, ai, ai+1, bi)
+		r1, e := NewRegion(a_rr, ip, mask)
 		if e != nil {
 			t.Log(e)
 			t.Fail()
@@ -138,13 +138,13 @@ func TestInitRegionTree(t *testing.T) {
 }
 
 func TestA(t *testing.T) {
-	d := "ww2.sinaimg.com"
+	d := "www.a.shifen.com"
 	drr, e := DomainRRCache.GetDomainNodeFromCacheWithName(d)
 	if e == nil {
 		// no error,RR is in RRDB,need check type,if CNAME,need refetch A recode for than CNAME rr
 		if drr != nil {
 			x := utils.Ip4ToInt32(net.ParseIP("124.207.129.171"))
-			rr, e := drr.DomainRegionTree.GetRegionFromCacheWithAddr(x)
+			rr, e := drr.DomainRegionTree.GetRegionFromCacheWithAddr(x, 32)
 			if e == nil {
 				//got rr
 				t.Log(rr)
