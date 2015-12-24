@@ -1,12 +1,14 @@
 package domain
 
 import (
-	"github.com/miekg/dns"
 	"net"
 	"query"
 	"reflect"
+	"server"
 	"testing"
 	"utils"
+
+	"github.com/miekg/dns"
 )
 
 func TestNewDomainDB(t *testing.T) {
@@ -83,7 +85,7 @@ func TestNewRegion(t *testing.T) {
 	}
 	for _, d := range d_arr {
 
-		a_rr, ipnet, e := GeneralDNSBackendQuery(d, utils.GetClientIP())
+		a_rr, ipnet, e := GeneralDNSBackendQuery(d, server.GetClientIP())
 		t.Log(a_rr, ipnet, e)
 		ip, mask := utils.IpNetToInt32(ipnet)
 		if a_rr == nil {
