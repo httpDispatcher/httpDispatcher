@@ -512,3 +512,7 @@ func TestNetworkRange(t *testing.T) {
 		t.Log(Ip4ToInt32(f), Ip4ToInt32(l))
 	}
 }
+
+func TestFileLine(t *testing.T) {
+	t.Log(GetDebugLine(), ".......")
+}

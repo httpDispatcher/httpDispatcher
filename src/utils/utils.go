@@ -2,11 +2,15 @@ package utils
 
 import (
 	"MyError"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"runtime"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -16,12 +20,28 @@ const (
 
 var Logger log.Logger
 
-func CheckIPv4(ip string) {
-
+func GetDebugLine() string {
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		// Truncate file name at last file name separator.
+		if index := strings.LastIndex(file, "/"); index >= 0 {
+			file = file[index+1:]
+		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
+			file = file[index+1:]
+		}
+	} else {
+		file = "???"
+		line = 1
+	}
+	buf := new(bytes.Buffer)
+	// Every line is indented at least one tab.
+	buf.WriteByte('\t')
+	fmt.Fprintf(buf, "%s:%d: ", file, line)
+	return buf.String()
 }
 
-func GetClientIP() string {
-	return "124.207.129.171"
+func CheckIPv4(ip string) {
+
 }
 
 func InitUitls() {
@@ -85,20 +105,26 @@ func Int32ToIP4(n uint32) net.IP {
 
 //ParseEdnsIPNet, Parse ends data to *net.IPNet
 func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.MyError) {
-	fmt.Println(mask)
-	iplen := 0
-	switch family {
-	case 1:
-		iplen = net.IPv4len
-	case 2:
-		iplen = net.IPv6len
+	//	fmt.Println(family)
+	//	iplen := 0
+	//	switch family {
+	//	case 1:
+	//		iplen = net.IPv4len
+	//	case 2:
+	//		iplen = net.IPv6len
+	//	}
+	//	n, i, ok := dtoi(string(mask), 0)
+	//	if ip == nil || !ok || i != len(string(mask)) || n < 0 || n > 8*iplen {
+	//		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseEdnsIPNet error, param: "+ip.String()+"/"+string(mask))
+	//	}
+	//	m := net.CIDRMask(n, 8*iplen)
+	//	return &net.IPNet{IP: ip.Mask(m), Mask: m}, nil
+	cidr := strings.Join([]string{ip.String(), strconv.Itoa(int(mask))}, "/")
+	_, ipnet, e := net.ParseCIDR(cidr)
+	if e == nil {
+		return ipnet, nil
 	}
-	n, i, ok := dtoi(string(mask), 0)
-	if ip == nil || !ok || i != len(string(mask)) || n < 0 || n > 8*iplen {
-		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseEdnsIPNet error, param: "+ip.String()+"/"+string(mask))
-	}
-	m := net.CIDRMask(n, 8*iplen)
-	return &net.IPNet{IP: ip.Mask(m), Mask: m}, nil
+	return nil, MyError.NewError(MyError.ERROR_NOTVALID, e.Error())
 }
 
 //Parse *net.IPNet to ip(uint32) and mask(int)
@@ -112,6 +138,7 @@ func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 	return ip, mask
 }
 
-func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
-
-}
+//
+//func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
+//	return
+//}
