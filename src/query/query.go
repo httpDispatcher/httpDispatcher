@@ -75,11 +75,9 @@ func DoQuery(
 	//	m.Truncated= false
 	m.SetQuestion(dns.Fqdn(domainName), queryType)
 
-	//	if !strings.Contains(domainName,"edge"){
 	if queryOpt != nil {
 		m.Extra = append(m.Extra, queryOpt)
 	}
-	//	}
 	r := &dns.Msg{}
 	var ee error
 	for l := 0; l < 3; l++ {
