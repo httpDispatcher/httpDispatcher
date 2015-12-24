@@ -130,6 +130,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			//GetSOA failed , need log and return
 			//return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "GetARecord func GetSOARecord failed: "+d)
 		}
+		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS[0].Ns)
 		rr, edns_h, edns, e := query.QueryA(dst, srcIP, soa.NS[0].Ns, "53")
 
 		if e == nil && rr != nil {

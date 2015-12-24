@@ -9,8 +9,6 @@ import (
 	"net/http"
 	//	"path"
 	"github.com/miekg/dns"
-	"query"
-	"utils"
 )
 
 type myHandler struct {
@@ -50,18 +48,18 @@ func ParseDomain(d string) (int, bool) {
 	return dns.IsDomainName(d)
 }
 
-func ServeDomain(d string) bool {
-	if _, err := ParseDomain(d); err != true {
-		utils.Logger.Println("Param error: " + d + " is not a valid domain name ")
-		return false
-	}
-	//	[]dns.RR, *dns.EDNS0_SUBNET, error
-	rr, subnet, err := query.QueryA(d, true)
-	fmt.Println(rr)
-	fmt.Println(subnet)
-	fmt.Println(err)
-	return true
-}
+//func ServeDomain(d string) bool {
+//	if _, err := ParseDomain(d); err != true {
+//		utils.Logger.Println("Param error: " + d + " is not a valid domain name ")
+//		return false
+//	}
+//	//	[]dns.RR, *dns.EDNS0_SUBNET, error
+//	rr, subnet, err := query.QueryA(d, true)
+//	fmt.Println(rr)
+//	fmt.Println(subnet)
+//	fmt.Println(err)
+//	return true
+//}
 
 func NewServer(addr string, port int32) {
 	if err := checkServeAddr(addr); err != nil {
