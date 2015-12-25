@@ -367,7 +367,7 @@ func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyErr
 	if len(r) < 1 {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
 	} else {
-		fmt.Println(utils.GetDebugLine(), "NewRegion: ", cap(r))
+		fmt.Println(utils.GetDebugLine(), "NewRegion: ", r)
 	}
 
 	dr := &Region{
