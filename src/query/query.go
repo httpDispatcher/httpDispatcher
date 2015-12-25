@@ -85,6 +85,21 @@ func DoQuery(
 		if ee != nil {
 			//		fmt.Println("errrororororororororo:")
 			fmt.Println(utils.GetDebugLine(), ee.Error())
+			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
+				if strings.Contains(ee.Error(), "connection refused") {
+					if c.Net == TCP {
+						c.Net = UDP
+					}
+				} else if ee == dns.ErrTruncated {
+					c.Net = TCP
+				} else {
+					if c.Net == TCP {
+						c.Net = UDP
+					} else {
+						c.Net = TCP
+					}
+				}
+			}
 			//		os.Exit(1)
 			if l >= 2 {
 				return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
@@ -328,7 +343,7 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	r := &dns.Msg{}
 
 	//	for c := 0; (c < 3) && cap(r.Answer) < 1; c++ {
-	r, e = DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, UDP)
+	r, e = DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, "udp")
 	if (e == nil) && (cap(r.Answer) > 0) {
 		b, ns_a := ParseNS(r.Answer)
 		if b != false {
