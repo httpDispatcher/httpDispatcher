@@ -57,7 +57,8 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	var Regiontree *domain.RegionTree
 	var bigloopflag bool = false
 	var A []dns.RR
-	for dst := d; bigloopflag == false; {
+	var c = 0
+	for dst := d; (bigloopflag == false) && (c < 15); c++ {
 		fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst)
 
 		dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
@@ -65,7 +66,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		fmt.Println(dn, e)
 		if e == nil && dn != nil && dn.DomainRegionTree != nil {
 			//Get DomainNode succ,
-			r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(utils.Ip4ToInt32(net.ParseIP(srcIP)), 32)
+			r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(utils.Ip4ToInt32(net.ParseIP(srcIP)), 8)
 			fmt.Println(utils.GetDebugLine(), "GetARecord : ", r, e)
 			if e == nil {
 				fmt.Println(utils.GetDebugLine(), "GetArecord: Gooooot: ", r)
@@ -110,14 +111,15 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			fmt.Println("error111,need return")
 		}
 		var cacheflag bool = false
-		for cacheflag = false; cacheflag != true; {
+		var cc = 0
+		for cacheflag = false; (cacheflag != true) && (cc < 3); cc++ {
 			// wait for goroutine 'StoreDomainNodeToCache' in GetSOARecord to be finished
 			dn, e = domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 			if e != nil {
 				// here ,may be nil
 				// error! need return
 				fmt.Println(utils.GetDebugLine(), "GetARecord : error222,need waite", e)
-				time.Sleep(3 * time.Microsecond)
+				time.Sleep(1 * time.Second)
 			} else {
 				cacheflag = true
 				fmt.Println(utils.GetDebugLine(), "GetARecord: ", dn)
@@ -178,7 +180,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			}
 		} else {
 			//QueryA error!
-			bigloopflag = true
+			//			bigloopflag = true
 			fmt.Println(utils.GetDebugLine(), e)
 			return false, nil, e
 		}

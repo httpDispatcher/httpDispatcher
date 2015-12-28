@@ -17,11 +17,13 @@ func TestGetSOARecord(t *testing.T) {
 
 func TestGetARecord(t *testing.T) {
 	d_arr := []string{
-		//		"www.taobao.com",
-		//		"www.baidu.com",
+		"www.taobao.com",
+		"www.baidu.com",
+		"www.qq.com",
+		"www.meituan.com",
 		"www.sina.com.cn",
-		//		"api.weibo.cn",
-		//		"weibo.cn",
+		"api.weibo.cn",
+		"weibo.cn",
 		"ww2.sinaimg.cn",
 	}
 	for _, d := range d_arr {
@@ -35,9 +37,9 @@ func BenchmarkGetARecord(b *testing.B) {
 	d_arr := []string{
 		"www.taobao.com",
 		"www.baidu.com",
-		"www.sina.com.cn",
-		"api.weibo.cn",
-		"weibo.cn",
+		//		"www.sina.com.cn",
+		//		"api.weibo.cn",
+		//		"weibo.cn",
 		//		"ww2.sinaimg.cn",
 	}
 	for _, d := range d_arr {
