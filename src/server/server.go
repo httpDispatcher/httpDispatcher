@@ -36,9 +36,27 @@ func TmpServe(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(query_string)
 	fmt.Println(url_path)
 	w.Write([]byte(r.RemoteAddr))
+	w.Write([]byte("\n"))
+
 	fmt.Println(r.Header)
 	fmt.Println(r.RequestURI)
 	fmt.Println(r.URL)
+	ok, re, e := GetARecord(query_string, "202.106.0.20")
+	if ok {
+		for _, ree := range re {
+			if a, ok := ree.(*dns.A); ok {
+				w.Write([]byte(a.A.String()))
+				w.Write([]byte("\n"))
+			} else {
+				w.Write([]byte(ree.String()))
+			}
+		}
+	} else if e != nil {
+		w.Write([]byte(e.Msg))
+	} else {
+		w.Write([]byte("unkown error!"))
+	}
+
 	//	b := r.Body
 }
 
