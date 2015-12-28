@@ -3,6 +3,7 @@ package main
 import (
 	//	"fmt"
 	//	"query"
+	"runtime"
 	"server"
 	"utils"
 )
@@ -88,6 +89,7 @@ func main() {
 	//	r, e := query.LoopForQueryNS(d)
 	//	fmt.Println(r)
 	//	fmt.Println(e)
+	runtime.GOMAXPROCS(4)
 	ServerAddr := "127.0.0.1"
 	ServerPort := int32(8080)
 	utils.InitUitls()
