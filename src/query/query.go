@@ -65,7 +65,7 @@ func DoQuery(
 	c := &dns.Client{
 		DialTimeout:  3 * time.Second,
 		WriteTimeout: 3 * time.Second,
-		ReadTimeout:  3 * time.Second,
+		ReadTimeout:  8 * time.Second,
 		Net:          t,
 	}
 
@@ -76,8 +76,10 @@ func DoQuery(
 	m.SetQuestion(dns.Fqdn(domainName), queryType)
 
 	if queryOpt != nil {
+		//		m.SetEdns0(1024,true)
 		m.Extra = append(m.Extra, queryOpt)
 	}
+
 	r := &dns.Msg{}
 	var ee error
 	for l := 0; l < 3; l++ {
@@ -90,7 +92,10 @@ func DoQuery(
 					if c.Net == TCP {
 						c.Net = UDP
 					}
-				} else if ee == dns.ErrTruncated {
+				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
+					fmt.Println(utils.GetDebugLine(), r)
+					//					m.SetEdns0(4096,false)
+					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
 					c.Net = TCP
 				} else {
 					if c.Net == TCP {
@@ -325,9 +330,6 @@ func preQuery(d, srcIP string) (*dns.OPT, *MyError.MyError) {
 
 	var o *dns.OPT
 	if len(srcIP) > 0 {
-		//TODO:modify GetClientIP func to use Server package
-		//Done!
-
 		o = PackEdns0SubnetOPT(srcIP, utils.DEFAULT_SOURCEMASK, utils.DEFAULT_SOURCESCOPE)
 	} else {
 		o = nil
@@ -529,3 +531,46 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 	}
 	return ds, dp, nil
 }
+
+//func DoQueryChan(m *dns.Msg, c *dns.Client, ns string, stopBit <-chan bool) *dns.Msg {
+//	select {
+//	case stopBit <- 1:
+//		runtime.Goexit()
+//	default:
+//		r := &dns.Msg{}
+//		var ee error
+//		for l := 0; l < 9; l++ {
+//			fmt.Println(utils.GetDebugLine(), ns, m.Question)
+//			r, _, ee = c.Exchange(m, ns)
+//			if ee != nil {
+//				//		fmt.Println("errrororororororororo:")
+//				fmt.Println(utils.GetDebugLine(), ee.Error())
+//				//Todo: usage of m.Question[0].Qtype is not safe,need fix!
+//				if (m.Question[0].Qtype == dns.TypeA) || (m.Question[0].Qtype == dns.TypeCNAME) {
+//					if strings.Contains(ee.Error(), "connection refused") {
+//						if c.Net == TCP {
+//							c.Net = UDP
+//						}
+//					} else if (ee == dns.ErrTruncated) && m.Question[0].Qtype == dns.TypeA {
+//						fmt.Println(utils.GetDebugLine(), r)
+//						//					m.SetEdns0(4096,false)
+//						//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
+//						c.Net = TCP
+//					} else {
+//						if c.Net == TCP {
+//							c.Net = UDP
+//						} else {
+//							c.Net = TCP
+//						}
+//					}
+//				}
+//				//		os.Exit(1)
+//				if l >= 2 {
+//					return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
+//				}
+//			}
+//		}
+//	}
+//
+//	return nil
+//}
