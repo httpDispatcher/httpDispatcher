@@ -9,6 +9,7 @@ import (
 	"utils"
 
 	"github.com/miekg/dns"
+	"strconv"
 )
 
 const (
@@ -53,8 +54,8 @@ func Check_DomainName(d string) (int, bool) {
 // param: t string ["tcp"|"udp]
 // 		  queryType uint16 dns.QueryType
 func DoQuery(
-	domainName,
-	domainResolverIP,
+	domainName string,
+	domainResolverIP []string,
 	domainResolverPort string,
 	queryType uint16,
 	queryOpt *dns.OPT, t string) (*dns.Msg, *MyError.MyError) {
@@ -79,39 +80,51 @@ func DoQuery(
 		//		m.SetEdns0(1024,true)
 		m.Extra = append(m.Extra, queryOpt)
 	}
-
-	r := &dns.Msg{}
-	var ee error
-	for l := 0; l < 3; l++ {
-		r, _, ee = c.Exchange(m, domainResolverIP+":"+domainResolverPort)
-		if ee != nil {
-			//		fmt.Println("errrororororororororo:")
-			fmt.Println(utils.GetDebugLine(), ee.Error())
-			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
-				if strings.Contains(ee.Error(), "connection refused") {
-					if c.Net == TCP {
-						c.Net = UDP
-					}
-				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
-					fmt.Println(utils.GetDebugLine(), r)
-					//					m.SetEdns0(4096,false)
-					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
-					c.Net = TCP
-				} else {
-					if c.Net == TCP {
-						c.Net = UDP
-					} else {
-						c.Net = TCP
-					}
-				}
+	var x = make(chan *dns.Msg)
+	for _, ds := range domainResolverIP {
+		go func(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) {
+			select {
+			case x <- doQuery(c, m, ds, domainResolverPort, queryType):
+			default:
 			}
-			//		os.Exit(1)
-			if l >= 2 {
-				return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
-			}
-		}
+		}(c, m, ds, domainResolverPort, queryType)
 	}
-	return r, nil
+	//	r := &dns.Msg{}
+	//	var ee error
+	//	for l := 0; l < 3; l++ {
+	//		r, _, ee = c.Exchange(m, domainResolverIP+":"+domainResolverPort)
+	//		if ee != nil {
+	//			//		fmt.Println("errrororororororororo:")
+	//			fmt.Println(utils.GetDebugLine(), ee.Error())
+	//			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
+	//				if strings.Contains(ee.Error(), "connection refused") {
+	//					if c.Net == TCP {
+	//						c.Net = UDP
+	//					}
+	//				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
+	//					fmt.Println(utils.GetDebugLine(), r)
+	//					//					m.SetEdns0(4096,false)
+	//					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
+	//					c.Net = TCP
+	//				} else {
+	//					if c.Net == TCP {
+	//						c.Net = UDP
+	//					} else {
+	//						c.Net = TCP
+	//					}
+	//				}
+	//			}
+	//			//		os.Exit(1)
+	//			if l >= 2 {
+	//				return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
+	//			}
+	//		}
+	//	}
+	if r := <-x; r != nil {
+		return r, nil
+	} else {
+		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Query failed "+domainName)
+	}
 }
 
 // Filter CNAME record in dns.Msg.Answer message.
@@ -219,7 +232,7 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	for c := 0; (soa == nil) && (c < 3); c++ {
 
 		soa, ns_a = nil, nil
-		r, e := DoQuery(d, cf.Servers[0], cf.Port, dns.TypeSOA, nil, UDP)
+		r, e := DoQuery(d, cf.Servers, cf.Port, dns.TypeSOA, nil, UDP)
 		//		fmt.Println(r)
 		if e != nil {
 			//			c++
@@ -345,7 +358,7 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	r := &dns.Msg{}
 
 	//	for c := 0; (c < 3) && cap(r.Answer) < 1; c++ {
-	r, e = DoQuery(d, cf.Servers[0], cf.Port, dns.TypeNS, nil, "udp")
+	r, e = DoQuery(d, cf.Servers, cf.Port, dns.TypeNS, nil, "udp")
 	if (e == nil) && (cap(r.Answer) > 0) {
 		b, ns_a := ParseNS(r.Answer)
 		if b != false {
@@ -360,7 +373,7 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 }
 
 // Query
-func QueryCNAME(d, srcIP, ds, dp string) ([]*dns.CNAME, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryCNAME(d, srcIP string, ds []string, dp string) ([]*dns.CNAME, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	o, e := preQuery(d, srcIP)
 	r, e := DoQuery(d, ds, dp, dns.TypeCNAME, o, UDP)
 	if e != nil {
@@ -399,7 +412,7 @@ func parseEdns0subnet(edns_opt *dns.OPT) (*dns.RR_Header, *dns.EDNS0_SUBNET) {
 	return edns_header, edns
 }
 
-func QueryA(d string, srcIp, ds, dp string) ([]dns.RR, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
+func QueryA(d, srcIp string, ds []string, dp string) ([]dns.RR, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	o, e := preQuery(d, srcIp)
 	r, e := DoQuery(d, ds, dp, dns.TypeA, o, UDP)
 	if e != nil || r == nil {
@@ -532,45 +545,39 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 	return ds, dp, nil
 }
 
-//func DoQueryChan(m *dns.Msg, c *dns.Client, ns string, stopBit <-chan bool) *dns.Msg {
-//	select {
-//	case stopBit <- 1:
-//		runtime.Goexit()
-//	default:
-//		r := &dns.Msg{}
-//		var ee error
-//		for l := 0; l < 9; l++ {
-//			fmt.Println(utils.GetDebugLine(), ns, m.Question)
-//			r, _, ee = c.Exchange(m, ns)
-//			if ee != nil {
-//				//		fmt.Println("errrororororororororo:")
-//				fmt.Println(utils.GetDebugLine(), ee.Error())
-//				//Todo: usage of m.Question[0].Qtype is not safe,need fix!
-//				if (m.Question[0].Qtype == dns.TypeA) || (m.Question[0].Qtype == dns.TypeCNAME) {
-//					if strings.Contains(ee.Error(), "connection refused") {
-//						if c.Net == TCP {
-//							c.Net = UDP
-//						}
-//					} else if (ee == dns.ErrTruncated) && m.Question[0].Qtype == dns.TypeA {
-//						fmt.Println(utils.GetDebugLine(), r)
-//						//					m.SetEdns0(4096,false)
-//						//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
-//						c.Net = TCP
-//					} else {
-//						if c.Net == TCP {
-//							c.Net = UDP
-//						} else {
-//							c.Net = TCP
-//						}
-//					}
-//				}
-//				//		os.Exit(1)
-//				if l >= 2 {
-//					return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
-//				}
-//			}
-//		}
-//	}
-//
-//	return nil
-//}
+func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Msg {
+	//	r := &dns.Msg{}
+	//	var ee error
+	for l := 0; l < 3; l++ {
+		r, _, ee := c.Exchange(m, ds+":"+dp)
+		if (ee != nil) || (r == nil) || (r.Answer == nil) {
+			//		fmt.Println("errrororororororororo:")
+			fmt.Println(utils.GetDebugLine(), strconv.Itoa(l), " times : ", ee.Error())
+			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
+				if strings.Contains(ee.Error(), "connection refused") {
+					if c.Net == TCP {
+						c.Net = UDP
+					}
+				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
+					fmt.Println(utils.GetDebugLine(), "Response Truncated : ", r)
+					//					m.SetEdns0(4096,false)
+					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
+					c.Net = TCP
+				} else {
+					if c.Net == TCP {
+						c.Net = UDP
+					} else {
+						c.Net = TCP
+					}
+				}
+			}
+			//		os.Exit(1)
+			if l >= 2 {
+				return nil
+			}
+		} else {
+			return r
+		}
+	}
+	return nil
+}

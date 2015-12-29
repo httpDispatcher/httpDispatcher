@@ -132,8 +132,12 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		Regiontree = dn.DomainRegionTree
 
 		//		soa.NS[0].Ns = "8.8.8.8"
-		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS[0].Ns)
-		rr, edns_h, edns, e := query.QueryA(dst, srcIP, soa.NS[0].Ns, "53")
+		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS)
+		var ns_a []string
+		for _, x := range soa.NS {
+			ns_a = append(ns_a, x.Ns)
+		}
+		rr, edns_h, edns, e := query.QueryA(dst, srcIP, ns_a, "53")
 
 		if e == nil && rr != nil {
 			var rr_i []dns.RR

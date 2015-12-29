@@ -403,7 +403,11 @@ func GeneralDNSBackendQuery(d string, srcIP string) ([]dns.RR, *net.IPNet, *MyEr
 	if e != nil || cap(ns) < 1 {
 		return nil, nil, e
 	}
-	a_rr, _, edns, e := query.QueryA(d, srcIP, ns[0].Ns, "53")
+	var ns_a []string
+	for _, x := range ns {
+		ns_a = append(ns_a, x.Ns)
+	}
+	a_rr, _, edns, e := query.QueryA(d, srcIP, ns_a, "53")
 	if e != nil || cap(a_rr) < 1 {
 		return nil, nil, e
 	}
