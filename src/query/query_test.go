@@ -111,7 +111,7 @@ func TestPackEdns0SubnetOPT(t *testing.T) {
 
 func testQueryCNAME(t *testing.T, d string) {
 	t.Log(d)
-	cname_a, edns_h, edns, e := QueryCNAME(d, "202.106.0.20", "114.114.114.114", "53")
+	cname_a, edns_h, edns, e := QueryCNAME(d, "202.106.0.20", []string{"114.114.114.114"}, "53")
 	if e != nil {
 		t.Log(e)
 		t.Fail()
@@ -229,7 +229,7 @@ func TestQueryA(t *testing.T) {
 
 func testQueryA(d string, t *testing.T) {
 	t.Log(d)
-	a_a, edns_h, edns, e := QueryA(d, "201.106.0.20", "114.114.114.114", "53")
+	a_a, edns_h, edns, e := QueryA(d, "201.106.0.20", []string{"114.114.114.114"}, "53")
 
 	if e != nil {
 		t.Log(e)
