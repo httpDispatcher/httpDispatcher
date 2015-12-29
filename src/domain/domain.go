@@ -18,7 +18,8 @@ import (
 	"github.com/petar/GoLLRB/llrb"
 )
 
-const radix_bit = 5
+const DefaultNetaddr = uint32(1)
+const DefaultMask = 1
 
 type MuLLRB struct {
 	llrb.LLRB
@@ -298,15 +299,14 @@ func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) 
 
 func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region, *MyError.MyError) {
 	if r := RT.Radix32.Find(addr, mask); r != nil && r.Value != nil {
-		fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r)
+		fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
 		if rr, ok := r.Value.(*Region); ok {
 			return rr, nil
 		} else {
-			RT.TraverseRegionTree()
 			return nil, MyError.NewError(MyError.ERROR_NOTVALID, "Found result but not valid,need check !")
 		}
-	} else if addr != uint32(1) && mask != 1 {
-		return RT.GetRegionFromCacheWithAddr(1, 1)
+	} else if addr != DefaultNetaddr && mask != DefaultMask {
+		return RT.GetRegionFromCacheWithAddr(DefaultNetaddr, DefaultMask)
 	}
 	return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found search region "+string(addr)+":"+string(mask))
 }
