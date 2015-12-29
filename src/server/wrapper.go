@@ -26,7 +26,7 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 	if e == nil && dn != nil {
 		dsoa_key := dn.SOAKey
 		soa, e = domain.DomainSOACache.GetDomainSOANodeFromCacheWithDomainName(dsoa_key)
-		fmt.Println("GetSOARecord: line 28 : GOOOOOOOOOOOOT!!!", soa)
+		fmt.Println(utils.GetDebugLine(), "GetSOARecord: line 28 : GOOOOOOOOOOOOT!!!", soa)
 		if e == nil && soa != nil {
 			return soa, nil
 		} else {
@@ -62,11 +62,10 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst)
 
 		dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
-		fmt.Print(utils.GetDebugLine(), "GetARecord:")
-		fmt.Println(dn, e)
+		fmt.Println(utils.GetDebugLine(), "GetARecord:", dn, e)
 		if e == nil && dn != nil && dn.DomainRegionTree != nil {
 			//Get DomainNode succ,
-			r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(utils.Ip4ToInt32(net.ParseIP(srcIP)), 8)
+			r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(utils.Ip4ToInt32(net.ParseIP(srcIP)), 32)
 			fmt.Println(utils.GetDebugLine(), "GetARecord : ", r, e)
 			if e == nil {
 				fmt.Println(utils.GetDebugLine(), "GetArecord: Gooooot: ", r)
@@ -83,7 +82,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 					continue
 				}
 			} else if e.ErrorNo == MyError.ERROR_NOTFOUND {
-				fmt.Println("Not found r, need query dns")
+				fmt.Println(utils.GetDebugLine(), "Not found r, need query dns")
 			}
 			// return
 		} else if e == nil && dn != nil && dn.DomainRegionTree == nil {
@@ -125,13 +124,13 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 				fmt.Println(utils.GetDebugLine(), "GetARecord: ", dn)
 			}
 		}
+		if e != nil || len(soa.NS) <= 0 {
+			//GetSOA failed , need log and return
+			return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "GetARecord func GetSOARecord failed: "+d)
+		}
 		dn.InitRegionTree()
 		Regiontree = dn.DomainRegionTree
 
-		if e != nil || len(soa.NS) <= 0 {
-			//GetSOA failed , need log and return
-			//return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "GetARecord func GetSOARecord failed: "+d)
-		}
 		//		soa.NS[0].Ns = "8.8.8.8"
 		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS[0].Ns)
 		rr, edns_h, edns, e := query.QueryA(dst, srcIP, soa.NS[0].Ns, "53")
@@ -172,10 +171,10 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 				fmt.Println(Regiontree.GetRegionFromCacheWithAddr(netaddr, mask))
 
 			} else {
-				netaddr, mask := uint32(1), 1
+				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
 				r, _ := domain.NewRegion(rr_i, netaddr, mask)
 				Regiontree.AddRegionToCache(r)
-				fmt.Print(utils.GetDebugLine(), "GetARecord: ", r)
+				fmt.Println(utils.GetDebugLine(), "GetARecord: ", r)
 				fmt.Println(Regiontree.GetRegionFromCacheWithAddr(netaddr, mask))
 			}
 		} else {
