@@ -297,15 +297,16 @@ func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) 
 }
 
 func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region, *MyError.MyError) {
-	if r := RT.Radix32.Find(addr, mask); r != nil {
-		fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r.Value)
+	if r := RT.Radix32.Find(addr, mask); r != nil && r.Value != nil {
+		fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r)
 		if rr, ok := r.Value.(*Region); ok {
 			return rr, nil
 		} else {
+			RT.TraverseRegionTree()
 			return nil, MyError.NewError(MyError.ERROR_NOTVALID, "Found result but not valid,need check !")
 		}
-	} else {
-		return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found result")
+	} else if addr != uint32(1) && mask != 1 {
+		return RT.GetRegionFromCacheWithAddr(1, 1)
 	}
 	return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found search region "+string(addr)+":"+string(mask))
 }
