@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	//	"path"
+	"domain"
 	"github.com/miekg/dns"
 )
 
@@ -29,7 +30,7 @@ func (s *myHandler) ServerHttp(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.URL)
 }
 
-func TmpServe(w http.ResponseWriter, r *http.Request) {
+func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_string := r.URL.Query().Get("d")
 
@@ -41,6 +42,28 @@ func TmpServe(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.Header)
 	fmt.Println(r.RequestURI)
 	fmt.Println(r.URL)
+	t, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(query_string)
+	if e == nil {
+		t.DomainRegionTree.TraverseRegionTree()
+	} else {
+		w.Write([]byte(e.Error()))
+	}
+
+}
+
+func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
+	url_path := r.URL.Path
+	query_string := r.URL.Query().Get("d")
+
+	fmt.Println(query_string)
+	fmt.Println(url_path)
+	w.Write([]byte(r.RemoteAddr))
+	w.Write([]byte("\n"))
+
+	fmt.Println(r.Header)
+	fmt.Println(r.RequestURI)
+	fmt.Println(r.URL)
+
 	ok, re, e := GetARecord(query_string, "202.106.0.20")
 	if ok {
 		for _, ree := range re {
@@ -91,7 +114,8 @@ func NewServer(addr string, port int32) {
 	//		WriteTimeout:   10 * time.Second,
 	//		MaxHeaderBytes: 1 << 20,
 	//	}
-	http.HandleFunc("/", TmpServe)
+	http.HandleFunc("/q", HttpQueryServe)
+	http.HandleFunc("/t", RegionTraverServe)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
