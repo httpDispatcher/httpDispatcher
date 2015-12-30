@@ -65,6 +65,13 @@ type Region struct {
 	UpdateTime time.Time
 }
 
+type RegionNew struct {
+	StarIP  uint32
+	EndIP   uint32
+	NetAddr uint32
+	NetMask uint32
+}
+
 type DomainSOANode struct {
 	SOAKey string // store SOA record first field,not the full domain name,but only the "dig -t SOA domain" resoponse
 	NS     []*dns.NS
