@@ -3,12 +3,8 @@ package domain
 import (
 	"MyError"
 	"fmt"
-	"net"
 	"os"
-	"query"
 	"reflect"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 	"utils"
@@ -63,6 +59,13 @@ type Region struct {
 	RrType     uint16
 	TTL        uint32
 	UpdateTime time.Time
+}
+
+type RRNew struct {
+	RrType uint16
+	Class  uint8
+	Ttl    uint32
+	Target string
 }
 
 type RegionNew struct {
@@ -187,7 +190,7 @@ func (DT *DomainRRTree) GetDomainNodeFromCache(d *Domain) (*DomainNode, *MyError
 }
 
 func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError) {
-	if _, ok := query.Check_DomainName(d.DomainName); ok {
+	if _, ok := dns.IsDomainName(d.DomainName); ok {
 		if dt, err := DT.GetDomainNodeFromCache(&d.Domain); dt != nil && err == nil {
 			d.DomainRegionTree = dt.DomainRegionTree
 			DT.Mutex.Lock()
@@ -403,30 +406,4 @@ func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyE
 		},
 		DomainRegionTree: nil,
 	}, nil
-}
-
-func GeneralDNSBackendQuery(d string, srcIP string) ([]dns.RR, *net.IPNet, *MyError.MyError) {
-	_, ns, e := query.QuerySOA(d)
-	if e != nil || cap(ns) < 1 {
-		return nil, nil, e
-	}
-	var ns_a []string
-	for _, x := range ns {
-		ns_a = append(ns_a, x.Ns)
-	}
-	a_rr, _, edns, e := query.QueryA(d, srcIP, ns_a, "53")
-	if e != nil || cap(a_rr) < 1 {
-		return nil, nil, e
-	}
-
-	//	var ipnet *net.IPNet
-	if edns != nil {
-		_, ipnet, ee := net.ParseCIDR(strings.Join([]string{edns.Address.String(), strconv.Itoa(int(edns.SourceScope))}, "/"))
-		if ee == nil {
-			return a_rr, ipnet, nil
-		} else {
-			return a_rr, nil, MyError.NewError(MyError.ERROR_NOTVALID, ee.Error())
-		}
-	}
-	return a_rr, nil, e
 }
