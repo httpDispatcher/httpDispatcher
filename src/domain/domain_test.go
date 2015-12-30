@@ -4,7 +4,7 @@ import (
 	"net"
 	"query"
 	"reflect"
-	"server"
+	//	"server"
 	"testing"
 	"utils"
 
@@ -85,7 +85,7 @@ func TestNewRegion(t *testing.T) {
 	}
 	for _, d := range d_arr {
 
-		a_rr, ipnet, e := GeneralDNSBackendQuery(d, server.GetClientIP())
+		a_rr, ipnet, e := GeneralDNSBackendQuery(d, "202.106.0.20")
 		t.Log(a_rr, ipnet, e)
 		ip, mask := utils.IpNetToInt32(ipnet)
 		if a_rr == nil {
@@ -197,7 +197,11 @@ func TestA(t *testing.T) {
 		}
 		if ns != nil {
 			//Query A
-			rr, i, edns, e := query.QueryA(d, true, ns[0].Ns, "53")
+			var ns_a []string
+			for _, n := range ns {
+				ns_a = append(ns_a, n.Ns)
+			}
+			rr, i, edns, e := query.QueryA(d, "202.106.0.20", ns_a, "53")
 			if e != nil {
 				t.Log(e)
 			} else {
@@ -225,7 +229,11 @@ func TestA(t *testing.T) {
 								t.Log(rc_soa)
 								t.Log(ns)
 								if e == nil && ns != nil {
-									rr, i, edns, e := query.QueryA(rc.Target, true, ns[0].Ns, "53")
+									var ns_a []string
+									for _, n := range ns {
+										ns_a = append(ns_a, n.Ns)
+									}
+									rr, i, edns, e := query.QueryA(rc.Target, "202.106.0.20", ns_a, "53")
 									t.Log(rr)
 									t.Log(i)
 									t.Log(edns)
