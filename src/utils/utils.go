@@ -131,7 +131,7 @@ func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.
 func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 	//	ai, bi := uint32(0), uint32(0)
 	if ipnet == nil {
-		return uint32(0), int(0)
+		return uint32(1), int(1)
 	}
 	ip = Ip4ToInt32(ipnet.IP)
 	mask, _ = ipnet.Mask.Size()
