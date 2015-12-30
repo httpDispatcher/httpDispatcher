@@ -71,8 +71,8 @@ func DoQuery(
 	}
 
 	m := &dns.Msg{}
-	//	m.AuthenticatedData = true
-	//	m.RecursionDesired = true
+	m.AuthenticatedData = true
+	m.RecursionDesired = true
 	//	m.Truncated= false
 	m.SetQuestion(dns.Fqdn(domainName), queryType)
 
@@ -219,6 +219,7 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 }
 
 func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
+	fmt.Println(utils.GetDebugLine(), " QuerySOA: ", d)
 	if _, ok := Check_DomainName(d); !ok {
 		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
@@ -281,7 +282,7 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					}
 				}
 				//				fmt.Println("============xxxxxx================")
-				fmt.Println(utils.GetDebugLine(), "QuerySOA: line 230 ", soa, "\n Also 230:", ns_a)
+				fmt.Println(utils.GetDebugLine(), "QuerySOA: ", soa, "\n Also 230:", ns_a)
 				return soa, ns_a, nil
 			}
 		}
@@ -307,8 +308,7 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					ns_a = append(ns_a, vv)
 				}
 			default:
-				fmt.Print(utils.GetDebugLine(), "PasreSOA: line 254 ")
-				fmt.Println(utils.GetDebugLine(), v)
+				fmt.Println(utils.GetDebugLine(), " PasreSOA: ", v)
 			}
 		} else {
 			fmt.Print(utils.GetDebugLine(), "ParseSOA 258 ")
@@ -548,6 +548,7 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Msg {
 	//	r := &dns.Msg{}
 	//	var ee error
+	fmt.Println(utils.GetDebugLine(), m.Question, ds, dp, queryType)
 	for l := 0; l < 3; l++ {
 		r, _, ee := c.Exchange(m, ds+":"+dp)
 		if (ee != nil) || (r == nil) || (r.Answer == nil) {
@@ -570,10 +571,6 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Ms
 						c.Net = TCP
 					}
 				}
-			}
-			//		os.Exit(1)
-			if l >= 2 {
-				return nil
 			}
 		} else {
 			return r
