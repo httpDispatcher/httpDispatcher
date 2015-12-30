@@ -8,8 +8,9 @@ import (
 	"time"
 	"utils"
 
-	"github.com/miekg/dns"
 	"strconv"
+
+	"github.com/miekg/dns"
 )
 
 const (
@@ -193,7 +194,7 @@ func GenerateParentDomain(d string) (string, *MyError.MyError) {
 // Loop For Query the domain name d's NS servers
 // if d has no NS server, Loop for the parent domain's name server
 func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
-	if _, ok := Check_DomainName(d); !ok {
+	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
 	r := dns.SplitDomainName(d)
@@ -220,7 +221,7 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 
 func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	fmt.Println(utils.GetDebugLine(), " QuerySOA: ", d)
-	if _, ok := Check_DomainName(d); !ok {
+	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
 	cf, el := dns.ClientConfigFromFile("/etc/resolv.conf")
@@ -333,7 +334,7 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 //		domain name server port
 //		*dns.OPT (for edns0_subnet)
 func preQuery(d, srcIP string) (*dns.OPT, *MyError.MyError) {
-	if _, ok := Check_DomainName(d); !ok {
+	if _, ok := dns.IsDomainName(d); !ok {
 		//		return "", "", nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name!")
 	}
 	//	ds, dp, e := GetDomainResolver(d)
