@@ -142,3 +142,7 @@ func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 //func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
 //	return
 //}
+
+func StrToIP(s string) net.IP {
+	return net.ParseIP(s)
+}
