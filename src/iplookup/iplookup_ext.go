@@ -1,8 +1,33 @@
 package iplookup
 
-import "utils"
+import (
+	"MyError"
+	"utils"
+)
+
+//todo:make
+var DBFile = "../../data/ip.db.db"
+
+func GetIPinfoWithString(ip string) (Ipinfo, *MyError.MyError) {
+	if ipdb := Il_open(DBFile); ipdb > 0 {
+		defer Il_close(ipdb)
+		nip := NewIp(ip)
+		defer DeleteIp(nip)
+		ipinfo := NewIpinfo()
+		//		defer DeleteIpinfo(ipinfo)  "Can not delete ip info within this func!
+		n := Il_search(nip, ipinfo, ipdb)
+		if n > 0 {
+			return ipinfo, nil
+		}
+	} else {
+		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Open ipdb file error :"+DBFile)
+	}
+
+	return nil, MyError.NewError(MyError.ERROR_NORESULT, "Can not get ipinfo with ip :"+ip)
+}
 
 func GetIpinfoStartEnd(i Ipinfo) (uint32, string, uint32, string) {
+	defer DeleteIpinfo(i) // Must delete ipinfo !
 	m := NewIpitem()
 	defer DeleteIpitem(m)
 	x := Il_bin2human(i, m, Id_code)
