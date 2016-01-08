@@ -16,6 +16,7 @@ import (
 
 const DefaultNetaddr = uint32(1)
 const DefaultMask = 1
+const DefaultRedaxMask = 32
 
 type MuLLRB struct {
 	llrb.LLRB
@@ -63,7 +64,7 @@ type Region struct {
 
 type RRNew struct {
 	RrType uint16
-	Class  uint8
+	Class  uint16
 	Ttl    uint32
 	Target string
 }
@@ -157,8 +158,8 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 		// for not found and type error, we should replace the node
 		fmt.Println(utils.GetDebugLine(), err)
 		DT.Mutex.Lock()
+		defer DT.Mutex.Unlock()
 		DT.LLRB.ReplaceOrInsert(d)
-		DT.Mutex.Unlock()
 		fmt.Println(utils.GetDebugLine(), " Store "+d.DomainName+" into DomainRRCache Done!")
 		return true, nil
 	}
