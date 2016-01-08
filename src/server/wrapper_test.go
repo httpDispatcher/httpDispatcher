@@ -7,24 +7,22 @@ import (
 
 func TestGetSOARecord(t *testing.T) {
 	soa, e := GetSOARecord("www.a.shifen.com")
-	t.Log(soa)
-	t.Log(e)
+	t.Log(soa, e)
 	time.Sleep(10 * time.Second)
 	soa, e = GetSOARecord("www.a.shifen.com")
-	t.Log(soa)
-	t.Log(e)
+	t.Log(soa, e)
 }
 
 func TestGetARecord(t *testing.T) {
 	d_arr := []string{
-		"www.taobao.com",
+		//		"www.taobao.com",
 		"www.baidu.com",
-		"www.qq.com",
-		"www.meituan.com",
-		"www.sina.com.cn",
-		"api.weibo.cn",
-		"weibo.cn",
-		"ww2.sinaimg.cn",
+		//		"www.qq.com",
+		//		"www.meituan.com",
+		//		"www.sina.com.cn",
+		//		"api.weibo.cn",
+		//		"weibo.cn",
+		//		"ww2.sinaimg.cn",
 	}
 	for _, d := range d_arr {
 		t.Log("Query for: ", d, " with clientip ", GetClientIP())
