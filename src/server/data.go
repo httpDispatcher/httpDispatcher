@@ -1,31 +1,31 @@
 package server
 
 type DNS_RR struct {
-	priority string `priority`
-	ip       string `ip`
-	ttl      string `ttl`
+	priority string `json:"priority"`
+	ip       string `json:"ip"`
+	ttl      string `json:"ttl"`
 }
 
 type DNS_RR_Z struct {
-	y string `priority`
-	p string `ip`
-	t string `ttl`
+	y string `json:"priority"`
+	p string `json:"ip"`
+	t string `json:"ttl"`
 }
 
 type RDATA struct {
-	domain    string   `domain`
-	device_ip string   `device_ip`
-	device_sp string   `device_sp`
-	code      string   `code`
-	dns       []DNS_RR `dns_rr`
+	domain    string   `json:"domain"`
+	device_ip string   `json:"device_ip"`
+	device_sp string   `json:"device_sp"`
+	code      string   `json:"code"`
+	dns       []DNS_RR `json:"dns_rr"`
 }
 
 type RDATA_Z struct {
-	m string     `domain`
-	i string     `device_ip`
-	s string     `device_sp`
-	c string     `code`
-	d []DNS_RR_Z `dns_rr_z`
+	m string     `json:"domain"`
+	i string     `json:"device_ip"`
+	s string     `json:"device_sp"`
+	c string     `json:"code"`
+	d []DNS_RR_Z `json:"dns_rr_z"`
 }
 
 func NewDnsRR(y, p, t string) *DNS_RR {
