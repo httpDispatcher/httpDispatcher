@@ -11,6 +11,9 @@ import (
 	"time"
 	"utils"
 
+	"config"
+	"strconv"
+
 	"github.com/miekg/dns"
 )
 
@@ -26,7 +29,7 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 	if e == nil && dn != nil {
 		dsoa_key := dn.SOAKey
 		soa, e = domain.DomainSOACache.GetDomainSOANodeFromCacheWithDomainName(dsoa_key)
-		fmt.Println(utils.GetDebugLine(), "GetSOARecord: line 28 : GOOOOOOOOOOOOT!!!", soa)
+		fmt.Println(utils.GetDebugLine(), " GOOOOOOOOOOOOT!!!", soa)
 		if e == nil && soa != nil {
 			return soa, nil
 		} else {
@@ -55,49 +58,47 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 
 func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	var Regiontree *domain.RegionTree
-	var bigloopflag bool = false
-	var A []dns.RR
-	var c = 0
-	for dst := d; (bigloopflag == false) && (c < 15); c++ {
+	var bigloopflag bool = false // big loop flag
+	var c = 0                    //big loop count
+
+	fmt.Println(utils.GetDebugLine(), "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
+	//Can't loop for CNAME chain than bigger than 10
+	for dst := d; (bigloopflag == false) && (c < 10); c++ {
 		fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst)
 
-		dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
-		fmt.Println(utils.GetDebugLine(), "GetARecord:", dn, e)
-		if e == nil && dn != nil && dn.DomainRegionTree != nil {
-			//Get DomainNode succ,
-			r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(utils.Ip4ToInt32(net.ParseIP(srcIP)), 32)
-			fmt.Println(utils.GetDebugLine(), "GetARecord : ", r, e)
-			if e == nil {
-				fmt.Println(utils.GetDebugLine(), "GetArecord: Gooooot: ", r)
-				if r.RrType == dns.TypeA {
-					fmt.Println(utils.GetDebugLine(), "GetARecord: Goooot A", r.RR)
-					bigloopflag = true
-					//					os.Exit(2)
-					A = r.RR
-					return true, A, nil
-					continue
-				} else if r.RrType == dns.TypeCNAME {
-					fmt.Println(utils.GetDebugLine(), "GetARecord : Goooot CNAME", r.RR)
-					dst = r.RR[0].(*dns.CNAME).Target
-					continue
-				}
-			} else if e.ErrorNo == MyError.ERROR_NOTFOUND {
-				fmt.Println(utils.GetDebugLine(), "Not found r, need query dns")
-			}
-			// return
-		} else if e == nil && dn != nil && dn.DomainRegionTree == nil {
-			// if RegionTree is nil, init RegionTree First
-			ok, e := dn.InitRegionTree()
-			//
-			fmt.Println("RegionTree is nil ,Init it: "+reflect.ValueOf(ok).String(), e)
+		ok, dn, RR, e := GetAFromCache(dst, srcIP)
+		fmt.Println(utils.GetDebugLine(), ok, dn, RR, e)
+		if ok {
+			// All is right and especilly RR is A record
+			return ok, RR, nil
 		} else {
-			// e != nil
-			// RegionTree is not nil
-			fmt.Print(utils.GetDebugLine(), "GetARecord:")
-			fmt.Println(dn, e)
-			if e.ErrorNo != MyError.ERROR_NOTFOUND {
-				fmt.Println("Found unexpected error, need return !")
-				os.Exit(2)
+			if (dn != nil) && (RR != nil) {
+				dst = RR[0].(*dns.CNAME).Target
+				continue
+			} else if (dn != nil) && (RR == nil) {
+				// hava domain node ,but region node is nil,need queryA
+
+			} //else if dn == nil {
+			//				// have no daomain node,need query SQA
+			//			}
+			//			goto GetFromSOA
+		}
+
+		fmt.Println(utils.GetDebugLine(), "++++++++++++++++++++++++++++++++++++++++++++++")
+		if config.IsLocalMysqlBackend(dst) {
+			fmt.Println(utils.GetDebugLine(), "**********************************************")
+			//need pass dn to GetAFromMySQLBackend, to fill th dn.RegionTree node
+			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, GetClientIP())
+			fmt.Println(utils.GetDebugLine(), ok, RR, ee)
+			if !ok {
+				fmt.Println(utils.GetDebugLine(), "GetAFromMySQL error : ", ee)
+			} else if rtype == dns.TypeA {
+				fmt.Println(utils.GetDebugLine(), "ReGet dst :", dst, RR)
+				return true, RR, nil
+			} else if rtype == dns.TypeCNAME {
+				dst = RR[0].(*dns.CNAME).Target
+				continue
 			}
 		}
 
@@ -111,7 +112,8 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		}
 		var cacheflag bool = false
 		var cc = 0
-		for cacheflag = false; (cacheflag != true) && (cc < 3); cc++ {
+		fmt.Println(utils.GetDebugLine(), cacheflag, cc, (cacheflag == false) && (cc < 5))
+		for cacheflag = false; (cacheflag == false) && (cc < 5); {
 			// wait for goroutine 'StoreDomainNodeToCache' in GetSOARecord to be finished
 			dn, e = domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 			if e != nil {
@@ -119,6 +121,12 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 				// error! need return
 				fmt.Println(utils.GetDebugLine(), "GetARecord : error222,need waite", e)
 				time.Sleep(1 * time.Second)
+				if e.ErrorNo == MyError.ERROR_NOTFOUND {
+					cc++
+				} else {
+					fmt.Println(utils.GetDebugLine(), e)
+					os.Exit(3)
+				}
 			} else {
 				cacheflag = true
 				fmt.Println(utils.GetDebugLine(), "GetARecord: ", dn)
@@ -126,42 +134,195 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		}
 		if e != nil || len(soa.NS) <= 0 {
 			//GetSOA failed , need log and return
-			return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "GetARecord func GetSOARecord failed: "+d)
+			return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN,
+				"GetARecord func GetSOARecord failed: "+d)
 		}
 		dn.InitRegionTree()
 		Regiontree = dn.DomainRegionTree
 
-		//		soa.NS[0].Ns = "8.8.8.8"
 		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS)
 		var ns_a []string
+		//todo: is that soa.NS may nil ?
 		for _, x := range soa.NS {
 			ns_a = append(ns_a, x.Ns)
 		}
-		rr, edns_h, edns, e := query.QueryA(dst, srcIP, ns_a, "53")
+		ok, rr_i, rtype, ee := GetAFromDNSBackend(dst, srcIP, ns_a, Regiontree)
+		if ok && rtype == dns.TypeA {
+			return true, rr_i, nil
+		} else if ok && rtype == dns.TypeCNAME {
+			dst = rr_i[0].(*dns.CNAME).Target
+			continue
+		} else if !ok && rr_i == nil && ee != nil && ee.ErrorNo == MyError.ERROR_NORESULT {
+			continue
+		} else {
+			return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error")
+		}
+	}
+	fmt.Println(utils.GetDebugLine(), "GetARecord: ", Regiontree)
+	return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error")
+}
 
-		if e == nil && rr != nil {
-			var rr_i []dns.RR
-			if a, ok := query.ParseA(rr, dst); ok {
-				//rr is A record
-				fmt.Print(utils.GetDebugLine(), "GetARecord : typeA ")
-				fmt.Println(utils.GetDebugLine(), a, ok)
-				bigloopflag = true
-				for _, i := range a {
-					rr_i = append(rr_i, dns.RR(i))
+func GetAFromCache(dst, srcIP string) (bool, *domain.DomainNode, []dns.RR, *MyError.MyError) {
+	dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
+	fmt.Println(utils.GetDebugLine(), "GetARecord:", dn, e)
+	if e == nil && dn != nil && dn.DomainRegionTree != nil {
+		//Get DomainNode succ,
+		r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(
+			utils.Ip4ToInt32(net.ParseIP(srcIP)), domain.DefaultRedaxMask)
+		fmt.Println(utils.GetDebugLine(), "GetARecord : ", r, e)
+		if e == nil {
+			fmt.Println(utils.GetDebugLine(), "GetArecord: Gooooot: ", r)
+			if r.RrType == dns.TypeA {
+				fmt.Println(utils.GetDebugLine(), "GetARecord: Goooot A", r.RR)
+				return true, dn, r.RR, nil
+			} else if r.RrType == dns.TypeCNAME {
+				fmt.Println(utils.GetDebugLine(), "GetARecord : Goooot CNAME", r.RR)
+				if len(r.RR) > 0 {
+					//					dst = r.RR[0].(*dns.CNAME).Target
+					return false, dn, r.RR, MyError.NewError(MyError.ERROR_NOTVALID,
+						"Get CNAME From,Requery A for "+r.RR[0].(*dns.CNAME).Target)
+				} else {
+					fmt.Println(utils.GetDebugLine(), "Error Got RegionFromCacheWithAddr", r.RR)
+					return false, dn, nil, MyError.NewError(MyError.ERROR_NORESULT, "Error Got RegionFromCacheWithAddr ")
 				}
-				A = rr_i
-			} else if b, ok := query.ParseCNAME(rr, dst); ok {
-				//rr is CNAME record
-				fmt.Println(utils.GetDebugLine(), "GetARecord: typeCNAME ", b, ok)
-				dst = b[0].Target
-				for _, i := range b {
-					rr_i = append(rr_i, dns.RR(i))
-				}
-			} else {
-				fmt.Println(utils.GetDebugLine(), "GetARecord: ", rr)
-				continue
+				//				continue
 			}
-			fmt.Println(utils.GetDebugLine(), "GetARecord: ", edns_h, edns)
+		} else if e.ErrorNo == MyError.ERROR_NOTFOUND {
+			fmt.Println(utils.GetDebugLine(), "Not found r, need query dns")
+			return false, dn, nil, MyError.NewError(MyError.ERROR_NOTFOUND,
+				"Not found R in cache, dst :"+dst+" srcIP "+srcIP)
+		}
+		// return
+	} else if e == nil && dn != nil && dn.DomainRegionTree == nil {
+		// Get domainNode in cache tree,but no RR in region tree,need query with NS
+		// if RegionTree is nil, init RegionTree First
+		ok, e := dn.InitRegionTree()
+		//
+		fmt.Println("RegionTree is nil ,Init it: "+reflect.ValueOf(ok).String(), e)
+		return false, dn, nil, MyError.NewError(MyError.ERROR_NORESULT,
+			"Get domainNode in cache tree,but no RR in region tree,need query with NS, dst : "+dst+" srcIP "+srcIP)
+	} else {
+		// e != nil
+		// RegionTree is not nil
+		fmt.Print(utils.GetDebugLine(), "GetARecord dst: "+dst+" srcIP: "+srcIP)
+		fmt.Println(dn, e)
+		if e.ErrorNo != MyError.ERROR_NOTFOUND {
+			fmt.Println("Found unexpected error, need return !")
+			os.Exit(2)
+		} else {
+			return false, nil, nil, e
+		}
+
+	}
+	return false, nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
+}
+
+func GetAFromMySQLBackend(dst, srcIP string) (bool, []dns.RR, uint16, *MyError.MyError) {
+	domainId, e := query.RRMySQL.GetDomainIDFromMySQL(dst)
+	if e != nil {
+		//todo:
+		fmt.Println(utils.GetDebugLine(), "Error, GetDomainIDFromMySQL:", e)
+		return false, nil, uint16(0), MyError.NewError(e.ErrorNo, "GetDomainFromMySQL return "+e.Error())
+	}
+	region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
+	if ee != nil {
+		fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
+		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+e.Error())
+	}
+	RR, eee := query.RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
+	if eee != nil {
+		fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
+			"RegionID:", region.IdRegion, eee)
+		fmt.Println(utils.GetDebugLine(), "Try to GetRRFromMySQL with Default Region")
+		RR, eee = query.RRMySQL.GetRRFromMySQL(uint32(domainId), uint32(0))
+		if eee != nil {
+			fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
+				"RegionID:", 0, eee)
+			return false, nil, uint16(0), MyError.NewError(eee.ErrorNo, "Error GetRRFromMySQL with DomainID:"+strconv.Itoa(domainId)+eee.Error())
+		}
+	}
+	fmt.Println(utils.GetDebugLine(), "GetRRFromMySQL Succ!:", RR)
+	if len(RR) > 0 {
+		var R []dns.RR
+		var rtype uint16
+		var reE *MyError.MyError
+		for _, mr := range RR {
+			fmt.Println(utils.GetDebugLine(), mr.RR)
+			hdr := dns.RR_Header{
+				Name:   dst,
+				Class:  mr.RR.Class,
+				Rrtype: mr.RR.RrType,
+				Ttl:    mr.RR.Ttl,
+			}
+			if mr.RR.RrType == dns.TypeA {
+				rh := &dns.A{
+					Hdr: hdr,
+					A:   utils.StrToIP(mr.RR.Target),
+				}
+				R = append(R, dns.RR(rh))
+				rtype = dns.TypeA
+				fmt.Println(utils.GetDebugLine(), "Get A RR from MySQL, requery dst:", dst)
+			} else if mr.RR.RrType == dns.TypeCNAME {
+				rh := &dns.CNAME{
+					Hdr:    hdr,
+					Target: mr.RR.Target,
+				}
+				R = append(R, dns.RR(rh))
+				rtype = dns.TypeCNAME
+				fmt.Println(utils.GetDebugLine(), "Get CNAME RR from MySQL, requery dst:", dst)
+				reE = MyError.NewError(MyError.ERROR_NOTVALID,
+					"Got CNAME result for dst : "+dst+" with srcIP : "+srcIP)
+			}
+		}
+		fmt.Println(utils.GetDebugLine(), R)
+		if len(R) > 0 {
+			return true, R, rtype, reE
+		}
+	}
+	return false, nil, uint16(0), MyError.NewError(MyError.ERROR_UNKNOWN, utils.GetDebugLine()+"Unknown Error ")
+
+}
+
+func GetAFromDNSBackend(
+	dst, srcIP string,
+	ns_a []string,
+	regionTree *domain.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
+
+	var reE *MyError.MyError = nil
+	var rtype uint16
+	rr, edns_h, edns, e := query.QueryA(dst, srcIP, ns_a, "53")
+	if e == nil && rr != nil {
+		var rr_i []dns.RR
+		if a, ok := query.ParseA(rr, dst); ok {
+			//rr is A record
+			fmt.Print(utils.GetDebugLine(), "GetARecord : typeA ")
+			fmt.Println(utils.GetDebugLine(), a, ok)
+			for _, i := range a {
+				rr_i = append(rr_i, dns.RR(i))
+			}
+			//if A ,need parse edns client subnet
+			//			return true,rr_i,nil
+			rtype = dns.TypeA
+		} else if b, ok := query.ParseCNAME(rr, dst); ok {
+			//rr is CNAME record
+			fmt.Println(utils.GetDebugLine(), "GetARecord: typeCNAME ", b, ok)
+			dst = b[0].Target
+			for _, i := range b {
+				rr_i = append(rr_i, dns.RR(i))
+			}
+			rtype = dns.TypeCNAME
+			reE = MyError.NewError(MyError.ERROR_NOTVALID,
+				"Got CNAME result for dst : "+dst+" with srcIP : "+srcIP)
+			//if CNAME need parse edns client subnet
+		} else {
+			//error return and retry
+			fmt.Println(utils.GetDebugLine(), "GetARecord: ", rr)
+			return false, nil, uint16(0), MyError.NewError(MyError.ERROR_NORESULT,
+				"Got error result, need retry for dst : "+dst+" with srcIP : "+srcIP)
+		}
+		// Parse edns client subnet
+		fmt.Println(utils.GetDebugLine(), "GetARecord: ", edns_h, edns)
+		go func(regionTree *domain.RegionTree) {
 			var ipnet *net.IPNet
 			if edns != nil {
 				ipnet, e = utils.ParseEdnsIPNet(edns.Address, edns.SourceScope, edns.Family)
@@ -170,50 +331,20 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			if ipnet != nil {
 				netaddr, mask := utils.IpNetToInt32(ipnet)
 				r, _ := domain.NewRegion(rr_i, netaddr, mask)
-				Regiontree.AddRegionToCache(r)
+				go regionTree.AddRegionToCache(r)
 				fmt.Print(utils.GetDebugLine(), "GetARecord: ")
-				fmt.Println(Regiontree.GetRegionFromCacheWithAddr(netaddr, mask))
+				fmt.Println(regionTree.GetRegionFromCacheWithAddr(netaddr, mask))
 
 			} else {
 				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
 				r, _ := domain.NewRegion(rr_i, netaddr, mask)
-				Regiontree.AddRegionToCache(r)
+				go regionTree.AddRegionToCache(r)
 				fmt.Println(utils.GetDebugLine(), "GetARecord: ", r)
-				fmt.Println(Regiontree.GetRegionFromCacheWithAddr(netaddr, mask))
+				fmt.Println(regionTree.GetRegionFromCacheWithAddr(netaddr, mask))
 			}
-		} else {
-			//QueryA error!
-			//			bigloopflag = true
-			fmt.Println(utils.GetDebugLine(), e)
-			return false, nil, e
-		}
-	}
-	fmt.Println(utils.GetDebugLine(), "GetARecord: ", Regiontree)
-	return true, A, nil
-}
+		}(regionTree)
 
-//func GeneralDNSBackendQuery(d string, srcIP string) ([]dns.RR, *net.IPNet, *MyError.MyError) {
-//	_, ns, e := query.QuerySOA(d)
-//	if e != nil || cap(ns) < 1 {
-//		return nil, nil, e
-//	}
-//	var ns_a []string
-//	for _, x := range ns {
-//		ns_a = append(ns_a, x.Ns)
-//	}
-//	a_rr, _, edns, e := query.QueryA(d, srcIP, ns_a, "53")
-//	if e != nil || cap(a_rr) < 1 {
-//		return nil, nil, e
-//	}
-//
-//	//	var ipnet *net.IPNet
-//	if edns != nil {
-//		_, ipnet, ee := net.ParseCIDR(strings.Join([]string{edns.Address.String(), strconv.Itoa(int(edns.SourceScope))}, "/"))
-//		if ee == nil {
-//			return a_rr, ipnet, nil
-//		} else {
-//			return a_rr, nil, MyError.NewError(MyError.ERROR_NOTVALID, ee.Error())
-//		}
-//	}
-//	return a_rr, nil, e
-//}
+		return true, rr_i, rtype, reE
+	}
+	return false, nil, rtype, MyError.NewError(MyError.ERROR_UNKNOWN, utils.GetDebugLine()+"Unknown error")
+}
