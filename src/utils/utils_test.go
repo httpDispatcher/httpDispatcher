@@ -516,3 +516,18 @@ func TestNetworkRange(t *testing.T) {
 func TestFileLine(t *testing.T) {
 	t.Log(GetDebugLine(), ".......")
 }
+
+func TestInt32ToIpNet(t *testing.T) {
+        for _, i := range ipnet_array {
+                ip, ipnet, e := net.ParseCIDR(i)
+                if e == nil {
+                        t.Log(ip)
+                        ipaddr, mask := IpNetToInt32(ipnet)
+                        ipnet, e = Int32ToIpNet(ipaddr, mask)
+                        if e == nil {
+                            t.Log(ipnet)
+                        }
+                }
+        }
+}
+
