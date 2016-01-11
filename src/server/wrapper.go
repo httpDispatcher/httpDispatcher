@@ -86,23 +86,6 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			//			goto GetFromSOA
 		}
 
-		fmt.Println(utils.GetDebugLine(), "++++++++++++++++++++++++++++++++++++++++++++++")
-		if config.IsLocalMysqlBackend(dst) {
-			fmt.Println(utils.GetDebugLine(), "**********************************************")
-			//need pass dn to GetAFromMySQLBackend, to fill th dn.RegionTree node
-			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, GetClientIP())
-			fmt.Println(utils.GetDebugLine(), ok, RR, ee)
-			if !ok {
-				fmt.Println(utils.GetDebugLine(), "GetAFromMySQL error : ", ee)
-			} else if rtype == dns.TypeA {
-				fmt.Println(utils.GetDebugLine(), "ReGet dst :", dst, RR)
-				return true, RR, nil
-			} else if rtype == dns.TypeCNAME {
-				dst = RR[0].(*dns.CNAME).Target
-				continue
-			}
-		}
-
 		soa, e := GetSOARecord(dst)
 		fmt.Println(utils.GetDebugLine(), "GetARecord:", soa, e)
 		if e != nil {
@@ -140,6 +123,23 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		}
 		dn.InitRegionTree()
 		Regiontree = dn.DomainRegionTree
+
+		fmt.Println(utils.GetDebugLine(), "++++++++++++++++++++++++++++++++++++++++++++++")
+		if config.IsLocalMysqlBackend(dst) {
+			fmt.Println(utils.GetDebugLine(), "**********************************************")
+			//need pass dn to GetAFromMySQLBackend, to fill th dn.RegionTree node
+			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, GetClientIP(), Regiontree)
+			fmt.Println(utils.GetDebugLine(), ok, RR, ee)
+			if !ok {
+				fmt.Println(utils.GetDebugLine(), "GetAFromMySQL error : ", ee)
+			} else if rtype == dns.TypeA {
+				fmt.Println(utils.GetDebugLine(), "ReGet dst :", dst, RR)
+				return true, RR, nil
+			} else if rtype == dns.TypeCNAME {
+				dst = RR[0].(*dns.CNAME).Target
+				continue
+			}
+		}
 
 		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS)
 		var ns_a []string
@@ -218,7 +218,7 @@ func GetAFromCache(dst, srcIP string) (bool, *domain.DomainNode, []dns.RR, *MyEr
 	return false, nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
 }
 
-func GetAFromMySQLBackend(dst, srcIP string) (bool, []dns.RR, uint16, *MyError.MyError) {
+func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
 	domainId, e := query.RRMySQL.GetDomainIDFromMySQL(dst)
 	if e != nil {
 		//todo:
@@ -277,6 +277,20 @@ func GetAFromMySQLBackend(dst, srcIP string) (bool, []dns.RR, uint16, *MyError.M
 		}
 		fmt.Println(utils.GetDebugLine(), R)
 		if len(R) > 0 {
+			go func(regionTree *domain.RegionTree) {
+				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
+
+				startIP, endIP := region.Region.StarIP, region.Region.EndIP
+				cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
+				fmt.Println(utils.GetDebugLine(), " GetRegionWithIPFromMySQL with srcIP: ",
+					srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
+					" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
+				//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
+				r, _ := domain.NewRegion(R, startIP, cidrmask)
+				regionTree.AddRegionToCache(r)
+				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
+				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+			}(regionTree)
 			return true, R, rtype, reE
 		}
 	}
@@ -323,41 +337,41 @@ func GetAFromDNSBackend(
 		}
 		// Parse edns client subnet
 		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", edns_h, edns)
-		//		go func(regionTree *domain.RegionTree) {
-		var ipnet *net.IPNet
-		if edns != nil {
-			ipnet, e = utils.ParseEdnsIPNet(edns.Address, edns.SourceScope, edns.Family)
-		}
-		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", e)
-
-		startIP, endIP := iplookup.GetIpinfoStartEndWithIPString(srcIP)
-		cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
-		fmt.Println(utils.GetDebugLine(), "iplookup.GetIpinfoStartEndWithIPString with srcIP: ",
-			srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
-			" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
-		if ipnet != nil {
-			netaddr, mask := utils.IpNetToInt32(ipnet)
-			fmt.Println(utils.GetDebugLine(), "Got Edns client subnet from ecs query, netaddr : ", netaddr,
-				" mask : ", mask)
-			if (netaddr != startIP) || (mask != cidrmask) {
-				fmt.Println(utils.GetDebugLine(), "iplookup data dose not match edns query result , netaddr : ",
-					netaddr, "<->", startIP, " mask: ", mask, "<->", cidrmask)
+		go func(regionTree *domain.RegionTree) {
+			var ipnet *net.IPNet
+			if edns != nil {
+				ipnet, e = utils.ParseEdnsIPNet(edns.Address, edns.SourceScope, edns.Family)
 			}
-			r, _ := domain.NewRegion(rr_i, startIP, cidrmask)
-			regionTree.AddRegionToCache(r)
-			fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend: ")
-			fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", e)
 
-		} else {
-			//todo: get StartIP/EndIP from iplookup module
+			startIP, endIP := iplookup.GetIpinfoStartEndWithIPString(srcIP)
+			cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
+			fmt.Println(utils.GetDebugLine(), "iplookup.GetIpinfoStartEndWithIPString with srcIP: ",
+				srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
+				" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
+			if ipnet != nil {
+				netaddr, mask := utils.IpNetToInt32(ipnet)
+				fmt.Println(utils.GetDebugLine(), "Got Edns client subnet from ecs query, netaddr : ", netaddr,
+					" mask : ", mask)
+				if (netaddr != startIP) || (mask != cidrmask) {
+					fmt.Println(utils.GetDebugLine(), "iplookup data dose not match edns query result , netaddr : ",
+						netaddr, "<->", startIP, " mask: ", mask, "<->", cidrmask)
+				}
+				r, _ := domain.NewRegion(rr_i, startIP, cidrmask)
+				regionTree.AddRegionToCache(r)
+				fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend: ")
+				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
 
-			//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
-			r, _ := domain.NewRegion(rr_i, startIP, cidrmask)
-			regionTree.AddRegionToCache(r)
-			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", r)
-			fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
-		}
-		//		}(regionTree)
+			} else {
+				//todo: get StartIP/EndIP from iplookup module
+
+				//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
+				r, _ := domain.NewRegion(rr_i, startIP, cidrmask)
+				regionTree.AddRegionToCache(r)
+				fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", r)
+				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+			}
+		}(regionTree)
 
 		return true, rr_i, rtype, reE
 	}
