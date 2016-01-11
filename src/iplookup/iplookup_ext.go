@@ -2,6 +2,7 @@ package iplookup
 
 import (
 	"MyError"
+	"fmt"
 	"utils"
 )
 
@@ -27,7 +28,7 @@ func GetIPinfoWithString(ip string) (Ipinfo, *MyError.MyError) {
 }
 
 func GetIpinfoStartEnd(i Ipinfo) (uint32, string, uint32, string) {
-	defer DeleteIpinfo(i) // Must delete ipinfo !
+	//	defer DeleteIpinfo(i) // Must delete ipinfo !
 	m := NewIpitem()
 	defer DeleteIpitem(m)
 	x := Il_bin2human(i, m, Id_code)
@@ -42,7 +43,14 @@ func GetIpinfoStartEnd(i Ipinfo) (uint32, string, uint32, string) {
 	}
 }
 
-//
-//func (IF Ipinfo) GetInt32End()   {
-//
-//}
+func GetIpinfoStartEndWithIPString(s string) (uint32, uint32) {
+	info, e := GetIPinfoWithString(s)
+	if e == nil && info != nil {
+		w, x, y, z := GetIpinfoStartEnd(info)
+		fmt.Println(utils.GetDebugLine(), w, x, y, z)
+		return w, y
+	} else {
+		fmt.Println(utils.GetDebugLine(), e)
+		return uint32(0), uint32(0)
+	}
+}

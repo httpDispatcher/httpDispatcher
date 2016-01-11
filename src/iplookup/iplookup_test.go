@@ -8,7 +8,7 @@ import (
 
 const DBPATH = "../../data/ip.db.db"
 
-var IPS = []string{"106.185.48.28", "202.106.0.20", "192.168.1.1"}
+var IPS = []string{"106.185.48.28", "202.106.0.20", "192.168.1.1", "124.207.129.171"}
 
 func TestOpenIPDB(t *testing.T) {
 	ok := Il_open(DBPATH)
@@ -78,5 +78,12 @@ func TestGetIPinfoWithString(t *testing.T) {
 		} else {
 			t.Log(ip, ipinfo, e)
 		}
+	}
+}
+
+func TestGetIpinfoStartEndWithIPString(t *testing.T) {
+	for _, ip := range IPS {
+		x, y := GetIpinfoStartEndWithIPString(ip)
+		t.Log(ip, x, y)
 	}
 }
