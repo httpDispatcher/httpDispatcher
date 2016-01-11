@@ -15,12 +15,12 @@ func TestGetSOARecord(t *testing.T) {
 
 func TestGetARecord(t *testing.T) {
 	d_arr := []string{
-		//		"www.taobao.com",
-		//		"www.taobao.com.danuoyi.tbcache.com.",
-		//		"www.baidu.com",
-		//		"www.qq.com",
-		//		"www.meituan.com",
-		//		"www.sina.com.cn",
+		"www.taobao.com",
+		"www.taobao.com.danuoyi.tbcache.com.",
+		"www.baidu.com",
+		"www.qq.com",
+		"www.meituan.com",
+		"www.sina.com.cn",
 		"api.weibo.cn",
 		"weibo.cn",
 		//		"ww2.sinaimg.cn",
