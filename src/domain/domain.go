@@ -338,6 +338,7 @@ func (RT *RegionTree) AddRegionToCache(r *Region) bool {
 	RT.Mutex.Lock()
 	defer RT.Mutex.Unlock()
 	RT.Radix32.Insert(r.NetworkAddr, r.NetworkMask, r)
+	fmt.Println(utils.GetDebugLine(), "AddRegionToCache : ", r.NetworkAddr, r.NetworkMask, r.RR)
 	return true
 }
 
