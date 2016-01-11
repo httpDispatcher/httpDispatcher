@@ -277,6 +277,13 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 		}
 		fmt.Println(utils.GetDebugLine(), R)
 		if len(R) > 0 {
+			//Add timer for auto refrech the RegionCache
+			go func(dst, srcIP string, regionTree *domain.RegionTree) {
+				fmt.Println(utils.GetDebugLine(), " Refresh record from after ", R[0].Header().Ttl-5, " Second ,add timer ")
+				time.AfterFunc(time.Duration(R[0].Header().Ttl-5)*time.Second,
+					func() { GetAFromMySQLBackend(dst, srcIP, regionTree) })
+			}(dst, srcIP, regionTree)
+
 			go func(regionTree *domain.RegionTree, R []dns.RR) {
 				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
 
@@ -335,9 +342,18 @@ func GetAFromDNSBackend(
 			return false, nil, uint16(0), MyError.NewError(MyError.ERROR_NORESULT,
 				"Got error result, need retry for dst : "+dst+" with srcIP : "+srcIP)
 		}
+
+		//Add timer for auto refrech the RegionCache
+		go func(dst, srcIP string, ns_a []string, regionTree *domain.RegionTree) {
+			fmt.Println(utils.GetDebugLine(), " Refresh record from after ", rr_i[0].Header().Ttl-5, " Second ,add timer ")
+			time.AfterFunc((time.Duration(rr_i[0].Header().Ttl-5))*time.Second,
+				func() { GetAFromDNSBackend(dst, srcIP, ns_a, regionTree) })
+		}(dst, srcIP, ns_a, regionTree)
+
 		// Parse edns client subnet
 		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", edns_h, edns)
 		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET) {
+			//todo: Need to be combined with the go func within GetAFromMySQLBackend
 			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", e)
 			var startIP, endIP uint32
 			region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
