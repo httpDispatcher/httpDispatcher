@@ -518,16 +518,24 @@ func TestFileLine(t *testing.T) {
 }
 
 func TestInt32ToIpNet(t *testing.T) {
-        for _, i := range ipnet_array {
-                ip, ipnet, e := net.ParseCIDR(i)
-                if e == nil {
-                        t.Log(ip)
-                        ipaddr, mask := IpNetToInt32(ipnet)
-                        ipnet, e = Int32ToIpNet(ipaddr, mask)
-                        if e == nil {
-                            t.Log(ipnet)
-                        }
-                }
-        }
+	for _, i := range ipnet_array {
+		ip, ipnet, e := net.ParseCIDR(i)
+		if e == nil {
+			t.Log(ip)
+			ipaddr, mask := IpNetToInt32(ipnet)
+			ipnet, e = Int32ToIpNet(ipaddr, mask)
+			if e == nil {
+				t.Log(ipnet)
+			}
+		}
+	}
 }
 
+func TestGetCIDRMaskWithUint32Range(t *testing.T) {
+	n_a := []uint32{1, 3, 7, 15, 31, 63, 127, 255}
+	for _, n := range n_a {
+		t.Logf("%d,%b", n, n)
+		x := GetCIDRMaskWithUint32Range(n, 0)
+		t.Log(x)
+	}
+}

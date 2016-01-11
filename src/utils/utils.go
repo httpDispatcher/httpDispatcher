@@ -140,19 +140,34 @@ func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 
 //Parse ip(uint32) and mask(int) to *net.IPNe
 func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
-        if mask < 0 || mask >32 {
-            return nil, MyError.NewError(MyError.ERROR_NOTVALID, "invalid mask error, param: " + strconv.Itoa(mask))
-        }
-        ipaddr := Int32ToIP4(ip)
+	if mask < 0 || mask > 32 {
+		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "invalid mask error, param: "+strconv.Itoa(mask))
+	}
+	ipaddr := Int32ToIP4(ip)
 
-        cidr := strings.Join([]string{ipaddr.String(), strconv.Itoa(mask)}, "/")
-        _, ipnet, ok := net.ParseCIDR(cidr)
-        if ok != nil {
-                return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseCIDR error, param: " + cidr)
-        }
-        return ipnet, nil
+	cidr := strings.Join([]string{ipaddr.String(), strconv.Itoa(mask)}, "/")
+	_, ipnet, ok := net.ParseCIDR(cidr)
+	if ok != nil {
+		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseCIDR error, param: "+cidr)
+	}
+	return ipnet, nil
 }
 
 func StrToIP(s string) net.IP {
 	return net.ParseIP(s)
+}
+
+func GetCIDRMaskWithUint32Range(startIp, endIp uint32) int {
+	n := endIp - startIp
+	x := 0
+	key := uint32(1)
+	for key > 0 {
+		if (n & key) > 0 {
+			x++
+		}
+		key = key << 1
+		fmt.Println(key)
+	}
+
+	return int(x - 1)
 }
