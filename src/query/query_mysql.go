@@ -98,7 +98,7 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 
 		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
 	default:
-		fmt.Println(utils.GetDebugLine(), idRegion, StartIP, EndIP, NetAddr, NetMask)
+		fmt.Println(utils.GetDebugLine(), "GetRegionWithIPFromMySQL: ", idRegion, StartIP, EndIP, NetAddr, NetMask)
 		return &MySQLRegion{
 			IdRegion: idRegion,
 			Region: &domain.RegionNew{
