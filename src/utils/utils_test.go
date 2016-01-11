@@ -532,10 +532,10 @@ func TestInt32ToIpNet(t *testing.T) {
 }
 
 func TestGetCIDRMaskWithUint32Range(t *testing.T) {
-	n_a := []uint32{1, 3, 7, 15, 31, 63, 127, 255}
+	n_a := []uint32{1, 3, 7, 15, 31, 63, 127, 255, 262143}
 	for _, n := range n_a {
 		t.Logf("%d,%b", n, n)
-		x := GetCIDRMaskWithUint32Range(n, 0)
+		x := GetCIDRMaskWithUint32Range(0, n)
 		t.Log(x)
 	}
 }
