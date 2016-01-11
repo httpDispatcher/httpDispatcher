@@ -338,10 +338,6 @@ func GetAFromDNSBackend(
 		// Parse edns client subnet
 		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", edns_h, edns)
 		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET) {
-			var ipnet *net.IPNet
-			if edns != nil {
-				ipnet, e = utils.ParseEdnsIPNet(edns.Address, edns.SourceScope, edns.Family)
-			}
 			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", e)
 			var startIP, endIP uint32
 			region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
@@ -356,7 +352,10 @@ func GetAFromDNSBackend(
 			fmt.Println(utils.GetDebugLine(), "iplookup.GetIpinfoStartEndWithIPString with srcIP: ",
 				srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
 				" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
-			if ipnet != nil {
+			if edns != nil {
+				var ipnet *net.IPNet
+
+				ipnet, e = utils.ParseEdnsIPNet(edns.Address, edns.SourceScope, edns.Family)
 				netaddr, mask := utils.IpNetToInt32(ipnet)
 				fmt.Println(utils.GetDebugLine(), "Got Edns client subnet from ecs query, netaddr : ", netaddr,
 					" mask : ", mask)
