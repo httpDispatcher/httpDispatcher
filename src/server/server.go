@@ -66,11 +66,11 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 		clientip = r.RemoteAddr
 	}
 	if x := net.ParseIP(clientip); x == nil {
-		clientip = r.RemoteAddr
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(clientip))
+		w.Write([]byte("client ip : " + clientip + " is not correct\n"))
+		return
 	}
-
-	w.Write([]byte(clientip))
-	w.Write([]byte("\n"))
 
 	if config.InWhiteList(query_domain) {
 		ok, re, e := GetARecord(query_domain, clientip)
@@ -90,8 +90,9 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("unkown error!\n"))
 		}
 	} else {
-		w.WriteHeader(403)
+		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("Query for domain: " + query_domain + " is not permited\n"))
+		//		runtime.Goexit()
 	}
 }
 

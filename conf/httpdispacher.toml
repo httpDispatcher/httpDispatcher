@@ -1,7 +1,7 @@
 #string
 bind = "0.0.0.0:8080"
 #string array
-domains = ["api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com."]
+domains = ["api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com.","www.taobao.com."]
 #bool
 mysql_enable = true
 #string
