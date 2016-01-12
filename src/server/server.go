@@ -115,13 +115,6 @@ func ParseDomain(d string) (int, bool) {
 //}
 
 func NewServer() {
-	//	s := &http.Server{
-	//		Addr:           ":8080",
-	//		Handler:        TmpServe,
-	//		ReadTimeout:    10 * time.Second,
-	//		WriteTimeout:   10 * time.Second,
-	//		MaxHeaderBytes: 1 << 20,
-	//	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/q", HttpQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)
