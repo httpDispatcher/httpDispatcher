@@ -2,12 +2,21 @@ package iplookup
 
 import (
 	"MyError"
+	"config"
 	"fmt"
 	"utils"
 )
 
 //todo:make
-var DBFile = "../../data/ip.db.db"
+var DBFile string
+
+func init() {
+	if config.RC.IPDB != "" {
+		DBFile = config.RC.IPDB
+	} else {
+		DBFile = "../conf/ip.db"
+	}
+}
 
 func GetIPinfoWithString(ip string) (Ipinfo, *MyError.MyError) {
 	if ipdb := Il_open(DBFile); ipdb > 0 {

@@ -36,6 +36,7 @@ type RuntimeConfiguration struct {
 	Domains      []string   `toml:"domains"`
 	MySQLEnabled bool       `toml:"mysql_enable"`
 	MySQLConf    *MySQLConf `toml:"mysql"`
+	IPDB         string     `toml:"ipdb_path"`
 }
 
 func init() {
@@ -99,6 +100,7 @@ func ParseConf(file string) bool {
 	fmt.Println("\tBindTo:          ", RC.Bind)
 	fmt.Println("\tEnabled domains: ", RC.Domains)
 	fmt.Println("\tMySQL enabled:   ", RC.MySQLEnabled)
+	fmt.Println("\tIPDB Path:       ", RC.IPDB)
 	if RC.MySQLEnabled {
 		fmt.Println("MySQL Conf: ")
 		fmt.Println("\tMySQL Host: ", RC.MySQLConf.MySQLHost)
