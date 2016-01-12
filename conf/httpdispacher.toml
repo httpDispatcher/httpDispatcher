@@ -1,0 +1,20 @@
+#string
+bind = "0.0.0.0:8080"
+#string array
+domains = ["api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com."]
+#bool
+mysql_enable = true
+
+[mysql]
+#string
+mysql_host = "127.0.0.1"
+#int
+mysql_port = 3306
+#string
+mysql_database = "httpDispacher_v1"
+#string
+mysql_user = "root"
+#string
+mysql_password = ""
+#string array
+domains_in_mysql = ["api.weibo.cn.","weibo.cn."]
