@@ -4,7 +4,6 @@ import (
 	"MyError"
 	"domain"
 	"fmt"
-	"iplookup"
 	"net"
 	"os"
 	"query"
@@ -373,7 +372,7 @@ func GetAFromDNSBackend(
 				}
 
 			} else {
-				startIP, endIP = iplookup.GetIpinfoStartEndWithIPString(srcIP)
+				//				startIP, endIP = iplookup.GetIpinfoStartEndWithIPString(srcIP)
 			}
 			cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
 			fmt.Println(utils.GetDebugLine(), "Search client region info with srcIP: ",

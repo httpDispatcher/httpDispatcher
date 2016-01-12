@@ -8,17 +8,6 @@ import (
 	"os"
 )
 
-//var List []string = []string{
-//	//	"www.taobao.com",
-//	//	"www.baidu.com",
-//	//	"www.qq.com",
-//	//	"www.meituan.com",
-//	//	"www.sina.com.cn",
-//	"api.weibo.cn",
-//	"weibo.cn",
-//	//	"ww2.sinaimg.cn",
-//}
-
 var ConfigFile string
 var RC *RuntimeConfiguration
 
@@ -37,6 +26,8 @@ type RuntimeConfiguration struct {
 	MySQLEnabled bool       `toml:"mysql_enable"`
 	MySQLConf    *MySQLConf `toml:"mysql"`
 	IPDB         string     `toml:"ipdb_path"`
+	ServerLog    string     `toml:"server_log"`
+	QueryLog     string     `toml:"query_log"`
 }
 
 func init() {
@@ -101,6 +92,8 @@ func ParseConf(file string) bool {
 	fmt.Println("\tEnabled domains: ", RC.Domains)
 	fmt.Println("\tMySQL enabled:   ", RC.MySQLEnabled)
 	fmt.Println("\tIPDB Path:       ", RC.IPDB)
+	fmt.Println("\tServerLog:       ", RC.ServerLog)
+	fmt.Println("\tQueryLog:        ", RC.QueryLog)
 	if RC.MySQLEnabled {
 		fmt.Println("MySQL Conf: ")
 		fmt.Println("\tMySQL Host: ", RC.MySQLConf.MySQLHost)
@@ -108,7 +101,7 @@ func ParseConf(file string) bool {
 		fmt.Println("\tMySQL DB:   ", RC.MySQLConf.MySQLDB)
 		fmt.Println("\tMySQL User: ", RC.MySQLConf.MySQLUser)
 		fmt.Println("\tMySQL Pass: ", RC.MySQLConf.MySQLPass)
-		fmt.Println("\tDomains In MySQL: ", RC.MySQLConf.DomainsInMySQL)
+		fmt.Println("\tDomains in MySQL: ", RC.MySQLConf.DomainsInMySQL)
 		fmt.Println("\t\t")
 	} else {
 		fmt.Println("Notice: MySQL backend is disabled")

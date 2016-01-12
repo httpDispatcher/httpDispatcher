@@ -6,6 +6,8 @@ domains = ["api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com.","www.taoba
 mysql_enable = true
 #string
 ipdb_path = "/Users/chunsheng/Dropbox/Work/Sina/08.Projects/16.httpDispacher/data/ip.db.db"
+server_log= "./httpdispacher.server.log"
+query_log = "./httpdispacher.query.log"
 
 [mysql]
 #string
