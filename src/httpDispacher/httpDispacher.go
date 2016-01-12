@@ -3,7 +3,11 @@ package main
 import (
 	//	"fmt"
 	//	"query"
+
+	"log"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"server"
 	"utils"
 )
@@ -89,6 +93,13 @@ func main() {
 	//	r, e := query.LoopForQueryNS(d)
 	//	fmt.Println(r)
 	//	fmt.Println(e)
+	f, err := os.Create("/Users/chunsheng/Dropbox/Work/Sina/08.Projects/16.httpDispacher/cpuprofile.out")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 	runtime.GOMAXPROCS(4)
 	ServerAddr := "127.0.0.1"
 	ServerPort := int32(8080)

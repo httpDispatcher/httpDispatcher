@@ -4,6 +4,7 @@ import (
 	"MyError"
 	"domain"
 	"fmt"
+	"iplookup"
 	"net"
 	"os"
 	"query"
@@ -15,7 +16,6 @@ import (
 	"strconv"
 
 	"github.com/miekg/dns"
-	"iplookup"
 )
 
 func GetClientIP() string {
@@ -66,10 +66,10 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 
 	//Can't loop for CNAME chain than bigger than 10
 	for dst := d; (bigloopflag == false) && (c < 10); c++ {
-		fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst)
+		fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst, " srcIP: ", srcIP)
 
 		ok, dn, RR, e := GetAFromCache(dst, srcIP)
-		fmt.Println(utils.GetDebugLine(), ok, dn, RR, e)
+		fmt.Println(utils.GetDebugLine(), " GetAFromCache return : ", ok, dn, RR, e)
 		if ok {
 			// All is right and especilly RR is A record
 			return ok, RR, nil
@@ -87,7 +87,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		}
 
 		soa, e := GetSOARecord(dst)
-		fmt.Println(utils.GetDebugLine(), "GetARecord:", soa, e)
+		fmt.Println(utils.GetDebugLine(), "GetARecord: GetSOARecord return : ", soa, " error: ", e)
 		if e != nil {
 			// error! need return
 			fmt.Print(utils.GetDebugLine(), "GetARecord: ")
@@ -96,14 +96,16 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		}
 		var cacheflag bool = false
 		var cc = 0
-		fmt.Println(utils.GetDebugLine(), "init Cache dn:", cacheflag, cc, (cacheflag == false) && (cc < 5))
+		fmt.Println(utils.GetDebugLine(), " Debuginfo : init Cache dn , cacheflag: ", cacheflag,
+			" cc: ", cc, " (cacheflag == false) && (cc < 5) ", (cacheflag == false) && (cc < 5))
 		for cacheflag = false; (cacheflag == false) && (cc < 5); {
 			// wait for goroutine 'StoreDomainNodeToCache' in GetSOARecord to be finished
 			dn, e = domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 			if e != nil {
 				// here ,may be nil
 				// error! need return
-				fmt.Println(utils.GetDebugLine(), "GetARecord : error222,need waite", e)
+				fmt.Println(utils.GetDebugLine(),
+					" GetARecord : have not got cache GetDomainNodeFromCacheWithName, need waite ", e)
 				time.Sleep(1 * time.Second)
 				if e.ErrorNo == MyError.ERROR_NOTFOUND {
 					cc++
@@ -129,19 +131,21 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			fmt.Println(utils.GetDebugLine(), "**********************************************")
 			//need pass dn to GetAFromMySQLBackend, to fill th dn.RegionTree node
 			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, GetClientIP(), Regiontree)
-			fmt.Println(utils.GetDebugLine(), ok, RR, ee)
+			fmt.Println(utils.GetDebugLine(), " Debug: GetAFromMySQLBackend: return ", ok,
+				" RR: ", RR, " error: ", ee)
 			if !ok {
-				fmt.Println(utils.GetDebugLine(), "GetAFromMySQL error : ", ee)
+				fmt.Println(utils.GetDebugLine(), "Error: GetAFromMySQL error : ", ee)
 			} else if rtype == dns.TypeA {
-				fmt.Println(utils.GetDebugLine(), "ReGet dst :", dst, RR)
+				fmt.Println(utils.GetDebugLine(), "Info: Got A record, : ", RR)
 				return true, RR, nil
 			} else if rtype == dns.TypeCNAME {
+				fmt.Println(utils.GetDebugLine(), "Info: Got CNAME record, ReGet dst : ", dst, RR)
 				dst = RR[0].(*dns.CNAME).Target
 				continue
 			}
 		}
 
-		fmt.Println(utils.GetDebugLine(), dst, srcIP, soa.NS)
+		fmt.Println(utils.GetDebugLine(), "Info: Got dst: ", dst, " srcIP: ", srcIP, " soa.NS: ", soa.NS)
 		var ns_a []string
 		//todo: is that soa.NS may nil ?
 		for _, x := range soa.NS {
@@ -278,13 +282,14 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 		fmt.Println(utils.GetDebugLine(), R)
 		if len(R) > 0 {
 			//Add timer for auto refrech the RegionCache
-			go func(dst, srcIP string, regionTree *domain.RegionTree) {
-				fmt.Println(utils.GetDebugLine(), " Refresh record from after ", R[0].Header().Ttl-5, " Second ,add timer ")
-				time.AfterFunc(time.Duration(R[0].Header().Ttl-5)*time.Second,
+			go func(dst, srcIP string, r dns.RR, regionTree *domain.RegionTree) {
+				fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
+					" Second, dst: ", dst, " srcIP: ", srcIP, "add timer ")
+				time.AfterFunc(time.Duration(r.Header().Ttl-5)*time.Second,
 					func() { GetAFromMySQLBackend(dst, srcIP, regionTree) })
-			}(dst, srcIP, regionTree)
+			}(dst, srcIP, R[0], regionTree)
 
-			go func(regionTree *domain.RegionTree, R []dns.RR) {
+			go func(regionTree *domain.RegionTree, R []dns.RR, srcIP string) {
 				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
 
 				startIP, endIP := region.Region.StarIP, region.Region.EndIP
@@ -297,7 +302,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 				regionTree.AddRegionToCache(r)
 				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
 				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
-			}(regionTree, R)
+			}(regionTree, R, srcIP)
 			return true, R, rtype, reE
 		}
 	}
@@ -317,8 +322,7 @@ func GetAFromDNSBackend(
 		var rr_i []dns.RR
 		if a, ok := query.ParseA(rr, dst); ok {
 			//rr is A record
-			fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend : typeA ")
-			fmt.Println(utils.GetDebugLine(), a, ok)
+			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend : typeA record: ", a, " dns.TypeA: ", ok)
 			for _, i := range a {
 				rr_i = append(rr_i, dns.RR(i))
 			}
@@ -327,7 +331,7 @@ func GetAFromDNSBackend(
 			rtype = dns.TypeA
 		} else if b, ok := query.ParseCNAME(rr, dst); ok {
 			//rr is CNAME record
-			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: typeCNAME ", b, ok)
+			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: typeCNAME record: ", b, " dns.TypeCNAME: ", ok)
 			dst = b[0].Target
 			for _, i := range b {
 				rr_i = append(rr_i, dns.RR(i))
@@ -344,28 +348,33 @@ func GetAFromDNSBackend(
 		}
 
 		//Add timer for auto refrech the RegionCache
-		go func(dst, srcIP string, ns_a []string, regionTree *domain.RegionTree) {
-			fmt.Println(utils.GetDebugLine(), " Refresh record from after ", rr_i[0].Header().Ttl-5, " Second ,add timer ")
-			time.AfterFunc((time.Duration(rr_i[0].Header().Ttl-5))*time.Second,
+		go func(dst, srcIP string, ns_a []string, r dns.RR, regionTree *domain.RegionTree) {
+			fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
+				" Second, dst: ", dst, " srcIP: ", srcIP, " ns_a: ", ns_a, "add timer ")
+			time.AfterFunc((time.Duration(r.Header().Ttl-5))*time.Second,
 				func() { GetAFromDNSBackend(dst, srcIP, ns_a, regionTree) })
-		}(dst, srcIP, ns_a, regionTree)
+		}(dst, srcIP, ns_a, rr_i[0], regionTree)
 
 		// Parse edns client subnet
-		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", edns_h, edns)
-		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET) {
+		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", " edns_h: ", edns_h, " edns: ", edns)
+		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET, srcIP string) {
 			//todo: Need to be combined with the go func within GetAFromMySQLBackend
-			fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", e)
 			var startIP, endIP uint32
-			region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
 
-			if ee != nil {
-				fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
-				startIP, endIP = region.Region.StarIP, region.Region.EndIP
+			if config.RC.MySQLEnabled {
+				region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
+				if ee != nil {
+					fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
+				} else {
+					startIP, endIP = region.Region.StarIP, region.Region.EndIP
+					fmt.Println(utils.GetDebugLine(), region.Region, startIP, endIP)
+				}
+
 			} else {
 				startIP, endIP = iplookup.GetIpinfoStartEndWithIPString(srcIP)
 			}
 			cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
-			fmt.Println(utils.GetDebugLine(), "iplookup.GetIpinfoStartEndWithIPString with srcIP: ",
+			fmt.Println(utils.GetDebugLine(), "Search client region info with srcIP: ",
 				srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
 				" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
 			if edns != nil {
@@ -380,6 +389,7 @@ func GetAFromDNSBackend(
 						netaddr, "<->", startIP, " mask: ", mask, "<->", cidrmask)
 				}
 				r, _ := domain.NewRegion(R, startIP, cidrmask)
+				//todo: modify to go func,so you can cathe the result
 				regionTree.AddRegionToCache(r)
 				fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend: ")
 				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
@@ -389,11 +399,12 @@ func GetAFromDNSBackend(
 
 				//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
 				r, _ := domain.NewRegion(R, startIP, cidrmask)
+				//todo: modify to go func,so you can cathe the result
 				regionTree.AddRegionToCache(r)
-				fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", r)
+				fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: AddRegionToCache: ", r)
 				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
 			}
-		}(regionTree, rr_i, edns)
+		}(regionTree, rr_i, edns, srcIP)
 
 		return true, rr_i, rtype, reE
 	}

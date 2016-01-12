@@ -8,7 +8,9 @@ import (
 	"net"
 	"net/http"
 	//	"path"
+	"config"
 	"domain"
+
 	"github.com/miekg/dns"
 )
 
@@ -53,37 +55,42 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 
 func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
-	query_string := r.URL.Query().Get("d")
+	query_domain := r.URL.Query().Get("d")
+	clientip := r.URL.Query().Get("ip")
+	fmt.Println("client ip: ", clientip)
 
-	fmt.Println(query_string)
-	fmt.Println(url_path)
-	w.Write([]byte(r.RemoteAddr))
-	w.Write([]byte("\n"))
+	fmt.Println("query_domain: ", query_domain)
+	fmt.Println("url_path: ", url_path)
 
-	fmt.Println(r.Header)
-	fmt.Println(r.RequestURI)
-	fmt.Println(r.URL)
-
-	ok, re, e := GetARecord(query_string, "202.106.0.20")
-	if ok {
-		for _, ree := range re {
-			if a, ok := ree.(*dns.A); ok {
-				w.Write([]byte(a.A.String()))
-				w.Write([]byte("\n"))
-			} else {
-				w.Write([]byte(ree.String()))
-			}
-		}
-	} else if e != nil {
-		w.Write([]byte(e.Msg))
-	} else {
-		w.Write([]byte("unkown error!"))
+	if clientip == "" {
+		clientip = r.RemoteAddr
 	}
 
-	//	b := r.Body
-}
+	w.Write([]byte(clientip))
+	w.Write([]byte("\n"))
 
-//func GetClientAddr(r *http.Request)
+	if config.InWhiteList(query_domain) {
+		ok, re, e := GetARecord(query_domain, clientip)
+		if ok {
+			for _, ree := range re {
+				if a, ok := ree.(*dns.A); ok {
+					w.Write([]byte(a.A.String()))
+					w.Write([]byte("\n"))
+				} else {
+					w.Write([]byte(ree.String()))
+					w.Write([]byte("\n"))
+				}
+			}
+		} else if e != nil {
+			w.Write([]byte(e.Msg))
+		} else {
+			w.Write([]byte("unkown error!\n"))
+		}
+	} else {
+		w.WriteHeader(403)
+		w.Write([]byte("Query for domain: " + query_domain + " is not permited\n"))
+	}
+}
 
 func ParseDomain(d string) (int, bool) {
 	return dns.IsDomainName(d)
@@ -116,7 +123,7 @@ func NewServer(addr string, port int32) {
 	//	}
 	http.HandleFunc("/q", HttpQueryServe)
 	http.HandleFunc("/t", RegionTraverServe)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(config.RC.Bind, nil))
 }
 
 func GetInterfaceAddr() ([]net.Addr, error) {

@@ -9,16 +9,12 @@ import (
 	"domain"
 	"strconv"
 
+	"config"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/miekg/dns"
 )
 
 const (
-	MySQL_Host  = "127.0.0.1"
-	MySQL_Port  = "3306"
-	MySQL_User  = "root"
-	MySQL_Pass  = ""
-	MySQL_DB    = "httpDispacher_v1"
 	RRTable     = "RRTable"
 	DomainTable = "DomainTable"
 	RegionTable = "RegionTable"
@@ -42,12 +38,15 @@ type MySQLRR struct {
 var RRMySQL *RR_MySQL
 
 func init() {
-	InitMySQL()
+	if config.RC.MySQLEnabled {
+		InitMySQL(config.RC.MySQLConf)
+	}
 }
 
-func InitMySQL() bool {
+func InitMySQL(mcf *config.MySQLConf) bool {
 	for x := 0; x < 3; x++ {
-		db, err := sql.Open("mysql", MySQL_User+":"+MySQL_Pass+"@tcp("+MySQL_Host+":"+MySQL_Port+")/"+MySQL_DB)
+		db, err := sql.Open("mysql", mcf.MySQLUser+":"+mcf.MySQLPass+
+			"@tcp("+mcf.MySQLHost+":"+strconv.Itoa(int(mcf.MySQLPort))+")/"+mcf.MySQLDB)
 		if err == nil {
 			RRMySQL = &RR_MySQL{DB: db}
 			return true
@@ -60,7 +59,7 @@ func InitMySQL() bool {
 
 func (D *RR_MySQL) GetDomainIDFromMySQL(d string) (int, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(); ok != true {
+		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
 			return -1, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
@@ -82,7 +81,7 @@ func (D *RR_MySQL) GetDomainIDFromMySQL(d string) (int, *MyError.MyError) {
 
 func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(); ok != true {
+		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
 			return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
@@ -98,7 +97,9 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 
 		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
 	default:
-		fmt.Println(utils.GetDebugLine(), "GetRegionWithIPFromMySQL: ", idRegion, StartIP, EndIP, NetAddr, NetMask)
+		fmt.Println(utils.GetDebugLine(), "GetRegionWithIPFromMySQL: ",
+			" idRegion: ", idRegion, " StartIP: ", StartIP, " EndIP: ", EndIP, " NetAddr: ",
+			NetAddr, " NetMask: ", NetMask)
 		return &MySQLRegion{
 			IdRegion: idRegion,
 			Region: &domain.RegionNew{
@@ -113,7 +114,7 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 
 func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) ([]*MySQLRR, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(); ok != true {
+		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
 			return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
