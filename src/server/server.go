@@ -65,6 +65,9 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	if clientip == "" {
 		clientip = r.RemoteAddr
 	}
+	if x := net.ParseIP(clientip); x == nil {
+		clientip = r.RemoteAddr
+	}
 
 	w.Write([]byte(clientip))
 	w.Write([]byte("\n"))
