@@ -13,11 +13,6 @@ import (
 	"strings"
 )
 
-const (
-	DEFAULT_SOURCEMASK  = 32
-	DEFAULT_SOURCESCOPE = 0
-)
-
 var Logger log.Logger
 
 func GetDebugLine() string {

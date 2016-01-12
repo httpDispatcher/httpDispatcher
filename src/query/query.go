@@ -19,6 +19,8 @@ const (
 	DEFAULT_RESOLV_FILE = "/etc/resolv.conf"
 	UDP                 = "udp"
 	TCP                 = "tcp"
+	DEFAULT_SOURCEMASK  = 32
+	DEFAULT_SOURCESCOPE = 0
 )
 
 // type RR , dns record
@@ -343,7 +345,7 @@ func preQuery(d, srcIP string) (*dns.OPT, *MyError.MyError) {
 
 	var o *dns.OPT
 	if len(srcIP) > 0 {
-		o = PackEdns0SubnetOPT(srcIP, utils.DEFAULT_SOURCEMASK, utils.DEFAULT_SOURCESCOPE)
+		o = PackEdns0SubnetOPT(srcIP, DEFAULT_SOURCEMASK, DEFAULT_SOURCESCOPE)
 	} else {
 		o = nil
 	}

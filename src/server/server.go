@@ -12,6 +12,7 @@ import (
 	"domain"
 
 	"github.com/miekg/dns"
+	"time"
 )
 
 type myHandler struct {
@@ -75,13 +76,13 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	if config.InWhiteList(query_domain) {
 		ok, re, e := GetARecord(query_domain, clientip)
 		if ok {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
 			for _, ree := range re {
 				if a, ok := ree.(*dns.A); ok {
-					w.Write([]byte(a.A.String()))
-					w.Write([]byte("\n"))
+					fmt.Fprintln(w, a.A.String())
 				} else {
-					w.Write([]byte(ree.String()))
-					w.Write([]byte("\n"))
+					fmt.Fprintln(w, ree.String())
 				}
 			}
 		} else if e != nil {
@@ -113,11 +114,7 @@ func ParseDomain(d string) (int, bool) {
 //	return true
 //}
 
-func NewServer(addr string, port int32) {
-	if err := checkServeAddr(addr); err != nil {
-		fmt.Println(err)
-		panic("Server addr error ! :" + addr)
-	}
+func NewServer() {
 	//	s := &http.Server{
 	//		Addr:           ":8080",
 	//		Handler:        TmpServe,
@@ -125,9 +122,23 @@ func NewServer(addr string, port int32) {
 	//		WriteTimeout:   10 * time.Second,
 	//		MaxHeaderBytes: 1 << 20,
 	//	}
-	http.HandleFunc("/q", HttpQueryServe)
-	http.HandleFunc("/t", RegionTraverServe)
-	log.Fatal(http.ListenAndServe(config.RC.Bind, nil))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/q", HttpQueryServe)
+	mux.HandleFunc("/t", RegionTraverServe)
+	server := &http.Server{
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+		Handler:      mux,
+	}
+	listener, err := net.Listen("tcp", config.RC.Bind)
+	defer listener.Close()
+	if nil != err {
+		log.Fatalln(err)
+	}
+	if err := server.Serve(listener); nil != err {
+		log.Fatalln(err)
+	}
+
 }
 
 func GetInterfaceAddr() ([]net.Addr, error) {
