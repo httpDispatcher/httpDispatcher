@@ -294,6 +294,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 
 				startIP, endIP := region.Region.StarIP, region.Region.EndIP
 				cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
+
 				fmt.Println(utils.GetDebugLine(), " GetRegionWithIPFromMySQL with srcIP: ",
 					srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
 					" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
@@ -301,7 +302,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 				r, _ := domain.NewRegion(R, startIP, cidrmask)
 				regionTree.AddRegionToCache(r)
 				fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
-				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+				//				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
 			}(regionTree, R, srcIP)
 			return true, R, rtype, reE
 		}
@@ -357,6 +358,7 @@ func GetAFromDNSBackend(
 
 		// Parse edns client subnet
 		fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", " edns_h: ", edns_h, " edns: ", edns)
+
 		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET, srcIP string) {
 			//todo: Need to be combined with the go func within GetAFromMySQLBackend
 			var startIP, endIP uint32
@@ -388,11 +390,16 @@ func GetAFromDNSBackend(
 					fmt.Println(utils.GetDebugLine(), "iplookup data dose not match edns query result , netaddr : ",
 						netaddr, "<->", startIP, " mask: ", mask, "<->", cidrmask)
 				}
+				// if there is no region info in region table of mysql db or no info in ipdb
+				if cidrmask <= 0 || startIP <= 0 {
+					startIP = netaddr
+					cidrmask = mask
+				}
 				r, _ := domain.NewRegion(R, startIP, cidrmask)
 				//todo: modify to go func,so you can cathe the result
 				regionTree.AddRegionToCache(r)
 				fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend: ")
-				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+				//				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
 
 			} else {
 				//todo: get StartIP/EndIP from iplookup module
