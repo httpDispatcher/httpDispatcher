@@ -111,10 +111,11 @@ func init() {
 	errCache := InitCache()
 
 	if errCache == nil {
-		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache OK")
-		fmt.Println(utils.GetDebugLine(), "InitDomainSOACache OK")
+		//		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache OK")
+		//		fmt.Println(utils.GetDebugLine(), "InitDomainSOACache OK")
 	} else {
 		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache() or InitDomainSOACache() failed")
+		fmt.Println(utils.GetDebugLine(), "Plase contact chunshengster@gmail.com to get more help ")
 		os.Exit(2)
 	}
 
@@ -156,7 +157,7 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
-		fmt.Println(utils.GetDebugLine(), err)
+		fmt.Println(utils.GetDebugLine(), " StoreDomainNodeToCache return error: ", err)
 		DT.Mutex.Lock()
 		defer DT.Mutex.Unlock()
 		DT.LLRB.ReplaceOrInsert(d)
@@ -338,7 +339,8 @@ func (RT *RegionTree) AddRegionToCache(r *Region) bool {
 	RT.Mutex.Lock()
 	defer RT.Mutex.Unlock()
 	RT.Radix32.Insert(r.NetworkAddr, r.NetworkMask, r)
-	fmt.Println(utils.GetDebugLine(), "AddRegionToCache : ", r.NetworkAddr, r.NetworkMask, r.RR)
+	fmt.Println(utils.GetDebugLine(), "AddRegionToCache : ",
+		" NetworkAddr: ", r.NetworkAddr, " NetworkMask: ", r.NetworkMask, " RR: ", r.RR)
 	return true
 }
 
@@ -380,7 +382,8 @@ func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyErr
 	if len(r) < 1 {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
 	} else {
-		fmt.Println(utils.GetDebugLine(), "NewRegion: ", r)
+		fmt.Println(utils.GetDebugLine(), "NewRegion: ",
+			" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
 	}
 
 	dr := &Region{

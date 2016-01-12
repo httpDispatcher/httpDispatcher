@@ -283,7 +283,7 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					}
 				}
 				//				fmt.Println("============xxxxxx================")
-				fmt.Println(utils.GetDebugLine(), "QuerySOA: ", soa, "\n Also 230:", ns_a)
+				fmt.Println(utils.GetDebugLine(), "QuerySOA: soa record ", soa, " ns_a: ", ns_a)
 				return soa, ns_a, nil
 			}
 		}
@@ -300,8 +300,7 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			switch vh.Rrtype {
 			case dns.TypeSOA:
 				if vv, ok := v.(*dns.SOA); ok {
-					fmt.Print(utils.GetDebugLine(), "ParseSOA:line 245 ")
-					fmt.Println(utils.GetDebugLine(), vv)
+					fmt.Print(utils.GetDebugLine(), "ParseSOA:  ", vv)
 					soa = vv
 				}
 			case dns.TypeNS:
@@ -309,7 +308,7 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					ns_a = append(ns_a, vv)
 				}
 			default:
-				fmt.Println(utils.GetDebugLine(), " PasreSOA: ", v)
+				fmt.Println(utils.GetDebugLine(), " PasreSOA: error unexpect: ", v)
 			}
 		} else {
 			fmt.Print(utils.GetDebugLine(), "ParseSOA 258 ")
@@ -549,12 +548,13 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Msg {
 	//	r := &dns.Msg{}
 	//	var ee error
-	fmt.Println(utils.GetDebugLine(), m.Question, ds, dp, queryType)
+	fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
+		" ds: ", ds, " dp: ", dp, " queryType ", queryType)
 	for l := 0; l < 3; l++ {
 		r, _, ee := c.Exchange(m, ds+":"+dp)
 		if (ee != nil) || (r == nil) || (r.Answer == nil) {
 			//		fmt.Println("errrororororororororo:")
-			fmt.Println(utils.GetDebugLine(), strconv.Itoa(l), " times : ", ee.Error())
+			fmt.Println(utils.GetDebugLine(), " retry: ", strconv.Itoa(l), " times : ", ee.Error())
 			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
 				if strings.Contains(ee.Error(), "connection refused") {
 					if c.Net == TCP {

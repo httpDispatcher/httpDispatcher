@@ -169,7 +169,8 @@ func GetCIDRMaskWithUint32Range(startIp, endIp uint32) int {
 			key = key << 1
 			//		fmt.Println(key)
 		}
-		fmt.Println(GetDebugLine(), " GetCIDRMaskWithUint32Range : ", 32-x)
+		fmt.Println(GetDebugLine(), " GetCIDRMaskWithUint32Range : ",
+			" startIP: ", startIp, " endIp: ", endIp, " Result: ", 32-x)
 		return int(32 - x)
 	}
 	return 0
