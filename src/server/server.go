@@ -12,6 +12,7 @@ import (
 	"domain"
 
 	"github.com/miekg/dns"
+	"strings"
 	"time"
 )
 
@@ -64,7 +65,8 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("url_path: ", url_path)
 
 	if clientip == "" {
-		clientip = r.RemoteAddr
+		hp := strings.Split(r.RemoteAddr, ":")
+		clientip = hp[0]
 	}
 	if x := net.ParseIP(clientip); x == nil {
 		w.WriteHeader(http.StatusForbidden)
