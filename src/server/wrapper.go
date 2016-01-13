@@ -372,6 +372,7 @@ func GetAFromDNSBackend(
 				}
 
 			} else {
+				// todo: make sure this was enabled
 				//				startIP, endIP = iplookup.GetIpinfoStartEndWithIPString(srcIP)
 			}
 			cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)

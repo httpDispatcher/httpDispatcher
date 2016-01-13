@@ -14,7 +14,7 @@ import (
 // Func: golang style
 
 func main() {
-	f, err := os.Create("/Users/chunsheng/Dropbox/Work/Sina/08.Projects/16.httpDispacher/cpuprofile.out")
+	f, err := os.Create("./cpuprofile.out")
 	if err != nil {
 		log.Fatal(err)
 	}
