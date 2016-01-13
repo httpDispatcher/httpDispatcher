@@ -3,9 +3,10 @@ package config
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/BurntSushi/toml"
 	"github.com/miekg/dns"
-	"os"
 )
 
 var ConfigFile string
@@ -28,6 +29,7 @@ type RuntimeConfiguration struct {
 	IPDB         string     `toml:"ipdb_path"`
 	ServerLog    string     `toml:"server_log"`
 	QueryLog     string     `toml:"query_log"`
+	LogLevel     string     `toml:"log_level"`
 }
 
 func init() {
@@ -94,6 +96,7 @@ func ParseConf(file string) bool {
 	fmt.Println("\tIPDB Path:       ", RC.IPDB)
 	fmt.Println("\tServerLog:       ", RC.ServerLog)
 	fmt.Println("\tQueryLog:        ", RC.QueryLog)
+	fmt.Println("\tLoglevel:        ", RC.LogLevel)
 	if RC.MySQLEnabled {
 		fmt.Println("MySQL Conf: ")
 		fmt.Println("\tMySQL Host: ", RC.MySQLConf.MySQLHost)

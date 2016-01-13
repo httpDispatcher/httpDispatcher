@@ -8,6 +8,7 @@ mysql_enable = true
 ipdb_path = "/Users/chunsheng/Dropbox/Work/Sina/08.Projects/16.httpDispacher/data/ip.db.db"
 server_log= "./httpdispacher.server.log"
 query_log = "./httpdispacher.query.log"
+log_level = "DEBUG"
 
 [mysql]
 #string
