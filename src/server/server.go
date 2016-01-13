@@ -43,9 +43,9 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(r.RemoteAddr))
 	w.Write([]byte("\n"))
 
-	fmt.Println(r.Header)
-	fmt.Println(r.RequestURI)
-	fmt.Println(r.URL)
+	fmt.Fprintln(w, r.Header)
+	fmt.Fprintln(w, r.RequestURI)
+	fmt.Println(w, r.URL)
 	t, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(query_string)
 	if e == nil {
 		t.DomainRegionTree.TraverseRegionTree()
@@ -58,25 +58,25 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_domain := r.URL.Query().Get("d")
-	clientip := r.URL.Query().Get("ip")
-	fmt.Println("client ip: ", clientip)
+	srcIP := r.URL.Query().Get("ip")
+	fmt.Println("src ip: ", srcIP)
 
 	fmt.Println("query_domain: ", query_domain)
 	fmt.Println("url_path: ", url_path)
 
-	if clientip == "" {
+	if srcIP == "" {
 		hp := strings.Split(r.RemoteAddr, ":")
-		clientip = hp[0]
+		srcIP = hp[0]
 	}
-	if x := net.ParseIP(clientip); x == nil {
+	if x := net.ParseIP(srcIP); x == nil {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(clientip))
-		w.Write([]byte("client ip : " + clientip + " is not correct\n"))
+		w.Write([]byte(srcIP))
+		w.Write([]byte("src ip : " + srcIP + " is not correct\n"))
 		return
 	}
 
 	if config.InWhiteList(query_domain) {
-		ok, re, e := GetARecord(query_domain, clientip)
+		ok, re, e := GetARecord(query_domain, srcIP)
 		if ok {
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusOK)
