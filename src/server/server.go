@@ -4,16 +4,19 @@ import (
 	//	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	//	"path"
 	"config"
 	"domain"
 
-	"github.com/miekg/dns"
 	"strings"
 	"time"
+	"utils"
+
+	"net/http/pprof"
+
+	"github.com/miekg/dns"
 )
 
 type myHandler struct {
@@ -120,18 +123,20 @@ func NewServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/q", HttpQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	server := &http.Server{
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		Handler:      mux,
 	}
 	listener, err := net.Listen("tcp", config.RC.Bind)
 	defer listener.Close()
 	if nil != err {
-		log.Fatalln(err)
+		utils.Logger.Fatalln(err)
 	}
 	if err := server.Serve(listener); nil != err {
-		log.Fatalln(err)
+		utils.Logger.Fatalln(err)
 	}
 
 }
