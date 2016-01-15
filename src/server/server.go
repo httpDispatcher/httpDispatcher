@@ -101,7 +101,7 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintln("Query for domain: " + query_domain + " is not permited\n")
+		fmt.Fprintln(w, "Query for domain: "+query_domain+" is not permited\n")
 		utils.ServerLogger.Info("Query for domain: %s is not permited", query_domain)
 		return
 	}
