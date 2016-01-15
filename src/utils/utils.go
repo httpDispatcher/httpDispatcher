@@ -2,7 +2,6 @@ package utils
 
 import (
 	"MyError"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -13,7 +12,11 @@ import (
 	"strings"
 )
 
-var Logger log.Logger
+var Logger *log.Logger
+
+//func init()  {
+//	InitUitls()
+//}
 
 func GetDebugLine() string {
 	_, file, line, ok := runtime.Caller(1)
@@ -28,11 +31,12 @@ func GetDebugLine() string {
 		file = "???"
 		line = 1
 	}
-	buf := new(bytes.Buffer)
-	// Every line is indented at least one tab.
-	buf.WriteByte('\t')
-	fmt.Fprintf(buf, "%s:%d: ", file, line)
-	return buf.String()
+	//	buf := new(bytes.Buffer)
+	//	// Every line is indented at least one tab.
+	//	buf.WriteByte('\t')
+	//	fmt.Fprintf(buf, "%s:%d: ", file, line)
+	//	return buf.String()
+	return "\t" + file + ":" + strconv.Itoa(line)
 }
 
 func CheckIPv4(ip string) {
