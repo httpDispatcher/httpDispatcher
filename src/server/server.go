@@ -62,16 +62,16 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_domain := r.URL.Query().Get("d")
 	srcIP := r.URL.Query().Get("ip")
-	//fmt.Println("src ip: ", srcIP)
-
-	//fmt.Println("query_domain: ", query_domain)
-	//fmt.Println("url_path: ", url_path)
+	if _, ok := dns.IsDomainName(query_domain); !ok {
+		fmt.Fprintln(w, "Error domain name: ", query_domain)
+		utils.ServerLogger.Info("error domain name : %s ", query_domain)
+		return
+	}
 
 	if srcIP == "" {
 		hp := strings.Split(r.RemoteAddr, ":")
 		srcIP = hp[0]
 	}
-	//utils.ServerLogger.Info(true, "src ip: ", string(srcIP), " query_domain: ", query_domain, " url_path: ", url_path)
 	utils.QueryLogger.Info("src ip: %s query_domain: %s url_path: %s", string(srcIP), query_domain, url_path)
 	if x := net.ParseIP(srcIP); x == nil {
 		w.WriteHeader(http.StatusForbidden)
@@ -114,19 +114,6 @@ func ParseDomain(d string) (int, bool) {
 	return dns.IsDomainName(d)
 }
 
-//func ServeDomain(d string) bool {
-//	if _, err := ParseDomain(d); err != true {
-//		utils.Logger.Println("Param error: " + d + " is not a valid domain name ")
-//		return false
-//	}
-//	//	[]dns.RR, *dns.EDNS0_SUBNET, error
-//	rr, subnet, err := query.QueryA(d, true)
-//	fmt.Println(rr)
-//	fmt.Println(subnet)
-//	fmt.Println(err)
-//	return true
-//}
-
 func NewServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/q", HttpQueryServe)
@@ -139,14 +126,12 @@ func NewServer() {
 	listener, err := net.Listen("tcp", config.RC.Bind)
 	defer listener.Close()
 	if nil != err {
-		//log.Fatalln(err)
 		utils.ServerLogger.Critical("Create listener error: %s", err.Error())
 		os.Exit(1)
 	}
 	if err := server.Serve(listener); nil != err {
 		utils.ServerLogger.Critical("Call server error: %s", err.Error())
 		os.Exit(1)
-		//log.Fatalln(err)
 	}
 
 }
