@@ -30,9 +30,6 @@ type HttpDnsClient struct {
 func (s *myHandler) ServerHttp(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(r.RemoteAddr))
 	utils.ServerLogger.Debug("Request header: %s  RequestURI: %s  URI: %s", r.Header, r.RequestURI, r.URL)
-	//fmt.Println(r.Header)
-	//fmt.Println(r.RequestURI)
-	//fmt.Println(r.URL)
 }
 
 func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
@@ -75,8 +72,8 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 	utils.QueryLogger.Info("src ip: %s query_domain: %s url_path: %s", string(srcIP), query_domain, url_path)
 	if x := net.ParseIP(srcIP); x == nil {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(srcIP))
-		w.Write([]byte("src ip : " + srcIP + " is not correct\n"))
+		fmt.Fprint(w, srcIP)
+		fmt.Fprintln(w, "src ip : "+srcIP+" is not correct")
 		utils.ServerLogger.Warning("src ip : %s is not correct", srcIP)
 		return
 	}
@@ -96,22 +93,18 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		} else if e != nil {
-			w.Write([]byte(e.Msg))
+			fmt.Fprintln(w, e.Error())
 			utils.ServerLogger.Error("query domain: %s src_ip: %s  %s", query_domain, srcIP, e.Error())
 		} else {
-			w.Write([]byte("unkown error!\n"))
+			fmt.Fprintln(w, "unkown error!\n")
 			utils.ServerLogger.Error("query domain: %s src_ip: %s fail unkown error!", query_domain, srcIP)
 		}
 	} else {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Query for domain: " + query_domain + " is not permited\n"))
+		fmt.Fprintln("Query for domain: " + query_domain + " is not permited\n")
 		utils.ServerLogger.Info("Query for domain: %s is not permited", query_domain)
-		//		runtime.Goexit()
+		return
 	}
-}
-
-func ParseDomain(d string) (int, bool) {
-	return dns.IsDomainName(d)
 }
 
 func NewServer() {
@@ -134,10 +127,6 @@ func NewServer() {
 		os.Exit(1)
 	}
 
-}
-
-func GetInterfaceAddr() ([]net.Addr, error) {
-	return net.InterfaceAddrs()
 }
 
 func checkServeAddr(addr string) error {
