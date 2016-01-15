@@ -5,20 +5,27 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+//	"log"
 	"net"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"config"
+
+        "github.com/op/go-logging"
 )
 
-const (
-	DEFAULT_SOURCEMASK  = 32
-	DEFAULT_SOURCESCOPE = 0
+var QueryLogger = logging.MustGetLogger("query")
+var ServerLogger = logging.MustGetLogger("server")
+
+var queryformat = logging.MustStringFormatter(
+    `%{time:2006-01-02T15:04:05} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{message}`,
 )
 
-var Logger log.Logger
+var serverformat = logging.MustStringFormatter(
+    `%{time:2006-01-02T15:04:05} %{longfile} ▶ %{level:.4s} %{id:03x}%{message}`,
+)
 
 func GetDebugLine() string {
 	_, file, line, ok := runtime.Caller(1)
@@ -45,8 +52,42 @@ func CheckIPv4(ip string) {
 }
 
 func InitUitls() {
-	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
-	Logger.Println("Starting httpDispacher...")
+//	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
+//	Logger.Println("Starting httpDispacher...")
+    loglevel := map[string]logging.Level {
+             "DEBUG": logging.DEBUG,
+             "INFO": logging.INFO,
+             "NOTICE": logging.NOTICE,
+             "WARNING": logging.WARNING,
+             "ERROR": logging.ERROR,
+             "CRITICAL": logging.CRITICAL}
+
+    qfd, e := os.OpenFile(config.RC.QueryLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if e != nil {
+        fmt.Println("Open log file ", config.RC.QueryLog, " error: ", e.Error())
+        os.Exit(1)
+    }
+
+    sfd, e := os.OpenFile(config.RC.ServerLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if e != nil {
+        fmt.Println("Open log file ", config.RC.ServerLog, " error: ", e.Error())
+        os.Exit(1)
+    }
+
+    backend1 := logging.NewLogBackend(qfd, "query", 0)
+    backend2 := logging.NewLogBackend(sfd, "server", 0)
+
+    backend1Formatter := logging.NewBackendFormatter(backend1, queryformat)
+    backend2Formatter := logging.NewBackendFormatter(backend2, serverformat)
+
+    backend1Leveled := logging.AddModuleLevel(backend1Formatter)
+    backend1Leveled.SetLevel(loglevel[config.RC.LogLevel], "query")
+
+    backend2Leveled := logging.AddModuleLevel(backend2Formatter)
+    backend2Leveled.SetLevel(loglevel[config.RC.LogLevel], "server")
+
+    QueryLogger.SetBackend(backend1Leveled)
+    ServerLogger.SetBackend(backend2Leveled)
 }
 
 // Bigger than we need, not too big to worry about overflow
@@ -140,19 +181,36 @@ func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
 
 //Parse ip(uint32) and mask(int) to *net.IPNe
 func Int32ToIpNet(ip uint32, mask int) (*net.IPNet, *MyError.MyError) {
-        if mask < 0 || mask >32 {
-            return nil, MyError.NewError(MyError.ERROR_NOTVALID, "invalid mask error, param: " + strconv.Itoa(mask))
-        }
-        ipaddr := Int32ToIP4(ip)
+	if mask < 0 || mask > 32 {
+		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "invalid mask error, param: "+strconv.Itoa(mask))
+	}
+	ipaddr := Int32ToIP4(ip)
 
-        cidr := strings.Join([]string{ipaddr.String(), strconv.Itoa(mask)}, "/")
-        _, ipnet, ok := net.ParseCIDR(cidr)
-        if ok != nil {
-                return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseCIDR error, param: " + cidr)
-        }
-        return ipnet, nil
+	cidr := strings.Join([]string{ipaddr.String(), strconv.Itoa(mask)}, "/")
+	_, ipnet, ok := net.ParseCIDR(cidr)
+	if ok != nil {
+		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseCIDR error, param: "+cidr)
+	}
+	return ipnet, nil
 }
 
 func StrToIP(s string) net.IP {
 	return net.ParseIP(s)
+}
+
+func GetCIDRMaskWithUint32Range(startIp, endIp uint32) int {
+	n := endIp - startIp
+	x := 0
+	key := uint32(1)
+	if n != uint32(0) {
+		for key > 0 {
+			if (n & key) > 0 {
+				x++
+			}
+			key = key << 1
+			//		fmt.Println(key)
+		}
+		return int(32 - x)
+	}
+	return 0
 }

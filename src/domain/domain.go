@@ -2,7 +2,7 @@ package domain
 
 import (
 	"MyError"
-	"fmt"
+	//"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -16,6 +16,7 @@ import (
 
 const DefaultNetaddr = uint32(1)
 const DefaultMask = 1
+const DefaultRedaxMask = 32
 
 type MuLLRB struct {
 	llrb.LLRB
@@ -63,7 +64,7 @@ type Region struct {
 
 type RRNew struct {
 	RrType uint16
-	Class  uint8
+	Class  uint16
 	Ttl    uint32
 	Target string
 }
@@ -110,10 +111,13 @@ func init() {
 	errCache := InitCache()
 
 	if errCache == nil {
-		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache OK")
-		fmt.Println(utils.GetDebugLine(), "InitDomainSOACache OK")
+		//		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache OK")
+		//		fmt.Println(utils.GetDebugLine(), "InitDomainSOACache OK")
 	} else {
-		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache() or InitDomainSOACache() failed")
+		//fmt.Println(utils.GetDebugLine(), "InitDomainRRCache() or InitDomainSOACache() failed")
+		//fmt.Println(utils.GetDebugLine(), "Plase contact chunshengster@gmail.com to get more help ")
+		utils.ServerLogger.Critical("InitDomainRRCache() or InitDomainSOACache() failed")
+		utils.ServerLogger.Info("Plase contact chunshengster@gmail.com to get more help")
 		os.Exit(2)
 	}
 
@@ -150,16 +154,19 @@ func (a *Domain) Less(b llrb.Item) bool {
 func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.MyError) {
 	dt, err := DT.GetDomainNodeFromCacheWithName(d.DomainName)
 	if dt != nil && err == nil {
-		fmt.Println(utils.GetDebugLine(), "DomainRRCache already has DomainNode of d "+d.DomainName)
+		//fmt.Println(utils.GetDebugLine(), "DomainRRCache already has DomainNode of d "+d.DomainName)
+		utils.ServerLogger.Debug("DomainRRCache already has DomainNode of d %s", d.DomainName)
 		d.DomainRegionTree = dt.DomainRegionTree
 
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
-		fmt.Println(utils.GetDebugLine(), err)
+		//fmt.Println(utils.GetDebugLine(), " StoreDomainNodeToCache return error: ", err)
+		utils.ServerLogger.Error( "StoreDomainNodeToCache return :  %s", err.Error())
 		DT.Mutex.Lock()
+		defer DT.Mutex.Unlock()
 		DT.LLRB.ReplaceOrInsert(d)
-		DT.Mutex.Unlock()
-		fmt.Println(utils.GetDebugLine(), " Store "+d.DomainName+" into DomainRRCache Done!")
+		//fmt.Println(utils.GetDebugLine(), " Store "+d.DomainName+" into DomainRRCache Done!")
+		utils.ServerLogger.Debug(" Store %s into DomainRRCache Done", d.DomainName)
 		return true, nil
 	}
 	return false, err
@@ -218,7 +225,8 @@ func (DT *DomainRRTree) DelDomainNode(d *Domain) (bool, *MyError.MyError) {
 	DT.Mutex.Lock()
 	r := DT.LLRB.Delete(d)
 	DT.Mutex.Unlock()
-	fmt.Println(utils.GetDebugLine(), "Delete "+d.DomainName+" from DomainRRCache "+reflect.ValueOf(r).String())
+	//fmt.Println(utils.GetDebugLine(), "Delete "+d.DomainName+" from DomainRRCache "+reflect.ValueOf(r).String())
+        utils.ServerLogger.Debug("Delete %s from DomainRRCache %s ", d.DomainName, reflect.ValueOf(r).String())
 	return true, nil
 }
 
@@ -242,14 +250,17 @@ func (DS *DomainSOANode) Less(b llrb.Item) bool {
 func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *MyError.MyError) {
 	dt, err := ST.GetDomainSOANodeFromCache(dsn)
 	if dt != nil && err == nil {
-		fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
+		//fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
+                utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey)
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
-		fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
+		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
+                utils.ServerLogger.Error( "StoreDomainSOANodeToCache:  %s", err.Error())
 		ST.Mutex.Lock()
 		ST.LLRB.ReplaceOrInsert(dsn)
 		ST.Mutex.Unlock()
-		fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache : Store "+dsn.SOAKey+" into DomainSOACache Done!")
+		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache : Store "+dsn.SOAKey+" into DomainSOACache Done!")
+                utils.ServerLogger.Debug("StoreDomainSOANodeToCache : Store %s into DomainSOACache Done", dsn.SOAKey)
 		return true, nil
 	}
 	return false, err
@@ -309,7 +320,8 @@ func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) 
 
 func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region, *MyError.MyError) {
 	if r := RT.Radix32.Find(addr, mask); r != nil && r.Value != nil {
-		fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
+		//fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
+                utils.ServerLogger.Debug("GetRegionFromCacheWithAddr: ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
 		if rr, ok := r.Value.(*Region); ok {
 			return rr, nil
 		} else {
@@ -337,6 +349,8 @@ func (RT *RegionTree) AddRegionToCache(r *Region) bool {
 	RT.Mutex.Lock()
 	defer RT.Mutex.Unlock()
 	RT.Radix32.Insert(r.NetworkAddr, r.NetworkMask, r)
+	//fmt.Println(utils.GetDebugLine(), "AddRegionToCache : ",
+	//	" NetworkAddr: ", r.NetworkAddr, " NetworkMask: ", r.NetworkMask, " RR: ", r.RR)
 	return true
 }
 
@@ -357,7 +371,8 @@ func (RT *RegionTree) DelRegionFromCache(r *Region) (bool, *MyError.MyError) {
 		RT.Mutex.Lock()
 		RT.Radix32.Remove(r.NetworkAddr, r.NetworkMask)
 		RT.Mutex.Unlock()
-		fmt.Println(utils.GetDebugLine(), "Remove Region from RegionCache "+string(r.NetworkAddr)+":"+string(r.NetworkMask))
+		//fmt.Println(utils.GetDebugLine(), "Remove Region from RegionCache "+string(r.NetworkAddr)+":"+string(r.NetworkMask))
+                utils.ServerLogger.Debug("Remove Region from RegionCache %s : %s", string(r.NetworkAddr), string(r.NetworkMask))
 		return true, nil
 	} else {
 		return true, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found Region from RegionCache")
@@ -367,10 +382,11 @@ func (RT *RegionTree) DelRegionFromCache(r *Region) (bool, *MyError.MyError) {
 
 func (RT *RegionTree) TraverseRegionTree() {
 	RT.Radix32.Do(func(r1 *bitradix.Radix32, i int) {
-		fmt.Println(utils.GetDebugLine(), r1.Key(),
-			r1.Value,
-			r1.Bits(),
-			r1.Leaf(), i)
+		//fmt.Println(utils.GetDebugLine(), r1.Key(),
+		//	r1.Value,
+		//	r1.Bits(),
+		//	r1.Leaf(), i)
+		utils.ServerLogger.Debug("TraverseRegionTree: ", r1.Value, r1.Bits(), r1.Leaf(), i)
 	})
 }
 
@@ -378,7 +394,9 @@ func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyErr
 	if len(r) < 1 {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
 	} else {
-		fmt.Println(utils.GetDebugLine(), "NewRegion: ", r)
+		//fmt.Println(utils.GetDebugLine(), "NewRegion: ",
+		//	" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
+                utils.ServerLogger.Debug("NewRegion: r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask )
 	}
 
 	dr := &Region{
