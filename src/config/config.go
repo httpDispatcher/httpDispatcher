@@ -7,6 +7,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/miekg/dns"
+	"utils"
 )
 
 var ConfigFile string
@@ -32,9 +33,14 @@ type RuntimeConfiguration struct {
 	LogLevel     string     `toml:"log_level"`
 }
 
-func init() {
+func InitConfig() {
 	ParseCommandline()
-	ParseConf(ConfigFile)
+	if ConfigFile != "" {
+		ParseConf(ConfigFile)
+	} else {
+		utils.ServerLogger.Fatal("ConfigFile path is empty,please check!")
+		os.Exit(1)
+	}
 }
 
 //todo: complete this func

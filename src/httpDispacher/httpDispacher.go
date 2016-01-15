@@ -5,6 +5,7 @@ import (
 	"server"
 	"utils"
 
+	"config"
 	"github.com/pkg/profile"
 )
 
@@ -13,6 +14,7 @@ import (
 // Func: golang style
 
 func main() {
+	config.InitConfig()
 	defer profile.Start(profile.CPUProfile).Stop()
 	utils.InitLogger()
 	runtime.GOMAXPROCS(8)
