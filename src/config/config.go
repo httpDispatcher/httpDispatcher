@@ -7,7 +7,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/miekg/dns"
-	"utils"
 )
 
 var ConfigFile string
@@ -38,7 +37,7 @@ func InitConfig() {
 	if ConfigFile != "" {
 		ParseConf(ConfigFile)
 	} else {
-		utils.ServerLogger.Fatal("ConfigFile path is empty,please check!")
+		fmt.Println("ConfigFile path is empty,please check!")
 		os.Exit(1)
 	}
 }
