@@ -67,6 +67,7 @@ func ParseCommandline() {
 	if ConfigFile == "" {
 		fmt.Println("ERROR: You must set the configuration file via -conf flag ")
 		fmt.Println("\tuse -h to see more help ")
+
 		os.Exit(1)
 	}
 	fd, e := os.Open(ConfigFile)

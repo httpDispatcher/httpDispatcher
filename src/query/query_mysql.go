@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"config"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/miekg/dns"
 )
@@ -36,6 +37,8 @@ type MySQLRR struct {
 }
 
 var RRMySQL *RR_MySQL
+
+//todo: "InitMySQL(config.RC.MySQLConf)" need to be refact. use RC in logic func is not so good!
 
 func init() {
 	if config.RC.MySQLEnabled {

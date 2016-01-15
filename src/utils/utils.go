@@ -2,21 +2,28 @@ package utils
 
 import (
 	"MyError"
+	"config"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/op/go-logging"
 )
 
-var Logger *log.Logger
+var QueryLogger = logging.MustGetLogger("query")
+var ServerLogger = logging.MustGetLogger("server")
 
-//func init()  {
-//	InitUitls()
-//}
+var queryformat = logging.MustStringFormatter(
+	`%{time:2006-01-02T15:04:05} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{message}`,
+)
+
+var serverformat = logging.MustStringFormatter(
+	`%{time:2006-01-02T15:04:05} %{longfile} ▶ %{level:.4s} %{id:03x}%{message}`,
+)
 
 func GetDebugLine() string {
 	_, file, line, ok := runtime.Caller(1)
@@ -44,8 +51,42 @@ func CheckIPv4(ip string) {
 }
 
 func InitUitls() {
-	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
-	Logger.Println("Starting httpDispacher...")
+	//	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
+	//	Logger.Println("Starting httpDispacher...")
+	loglevel := map[string]logging.Level{
+		"DEBUG":    logging.DEBUG,
+		"INFO":     logging.INFO,
+		"NOTICE":   logging.NOTICE,
+		"WARNING":  logging.WARNING,
+		"ERROR":    logging.ERROR,
+		"CRITICAL": logging.CRITICAL}
+
+	qfd, e := os.OpenFile(config.RC.QueryLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if e != nil {
+		fmt.Println("Open log file ", config.RC.QueryLog, " error: ", e.Error())
+		os.Exit(1)
+	}
+
+	sfd, e := os.OpenFile(config.RC.ServerLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if e != nil {
+		fmt.Println("Open log file ", config.RC.ServerLog, " error: ", e.Error())
+		os.Exit(1)
+	}
+
+	backend1 := logging.NewLogBackend(qfd, "query", 0)
+	backend2 := logging.NewLogBackend(sfd, "server", 0)
+
+	backend1Formatter := logging.NewBackendFormatter(backend1, queryformat)
+	backend2Formatter := logging.NewBackendFormatter(backend2, serverformat)
+
+	backend1Leveled := logging.AddModuleLevel(backend1Formatter)
+	backend1Leveled.SetLevel(loglevel[config.RC.LogLevel], "query")
+
+	backend2Leveled := logging.AddModuleLevel(backend2Formatter)
+	backend2Leveled.SetLevel(loglevel[config.RC.LogLevel], "server")
+
+	QueryLogger.SetBackend(backend1Leveled)
+	ServerLogger.SetBackend(backend2Leveled)
 }
 
 // Bigger than we need, not too big to worry about overflow
@@ -168,8 +209,6 @@ func GetCIDRMaskWithUint32Range(startIp, endIp uint32) int {
 			key = key << 1
 			//		fmt.Println(key)
 		}
-		fmt.Println(GetDebugLine(), " GetCIDRMaskWithUint32Range : ",
-			" startIP: ", startIp, " endIp: ", endIp, " Result: ", 32-x)
 		return int(32 - x)
 	}
 	return 0

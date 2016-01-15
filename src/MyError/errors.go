@@ -1,8 +1,6 @@
 package MyError
 
-import (
 //	"fmt"
-)
 
 const (
 	ERROR_PARAM     = "ERROR_PARAM"

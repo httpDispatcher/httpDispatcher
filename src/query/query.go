@@ -2,7 +2,7 @@ package query
 
 import (
 	"MyError"
-	"fmt"
+	//"fmt"
 	"net"
 	"strings"
 	"time"
@@ -133,15 +133,18 @@ func DoQuery(
 // Filter CNAME record in dns.Msg.Answer message.
 // 	if r(*dns.Msg.Answer) includes (*dns.CNAME) , than return the CNAME record array.
 func ParseCNAME(c []dns.RR, d string) ([]*dns.CNAME, bool) {
-	fmt.Println(utils.GetDebugLine(), "ParseCNAME line 99: ", c)
+	//fmt.Println(utils.GetDebugLine(), "ParseCNAME line 99: ", c)
+	utils.ServerLogger.Debug("ParseCNAME: %s", c)
 	var cname_a []*dns.CNAME
 	for _, a := range c {
 		if cname, ok := a.(*dns.CNAME); ok {
-			fmt.Println(utils.GetDebugLine(), "ParseCNAME: line 103 : ", cname.Hdr.Name, d)
+			//fmt.Println(utils.GetDebugLine(), "ParseCNAME: line 103 : ", cname.Hdr.Name, d)
+			utils.ServerLogger.Debug("ParseCNAME: %s  %s", cname.Hdr.Name, d)
 			if cname.Hdr.Name == dns.Fqdn(d) {
 				cname_a = append(cname_a, cname)
 			} else {
-				fmt.Println(utils.GetDebugLine(), "ParseCNAME: line 106: ", cname)
+				//fmt.Println(utils.GetDebugLine(), "ParseCNAME: line 106: ", cname)
+				utils.ServerLogger.Debug("ParseCNAME: %s", cname)
 			}
 		}
 	}
@@ -172,7 +175,8 @@ func ParseA(a []dns.RR, d string) ([]*dns.A, bool) {
 			if x.Hdr.Name == dns.Fqdn(d) {
 				a_rr = append(a_rr, x)
 			} else {
-				fmt.Println(utils.GetDebugLine(), "ParseA: line 135: ", x)
+				//fmt.Println(utils.GetDebugLine(), "ParseA: line 135: ", x)
+				utils.ServerLogger.Debug("ParseA: %s", x)
 			}
 		}
 	}
@@ -222,7 +226,8 @@ func LoopForQueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 }
 
 func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
-	fmt.Println(utils.GetDebugLine(), " QuerySOA: ", d)
+	//fmt.Println(utils.GetDebugLine(), " QuerySOA: ", d)
+	utils.ServerLogger.Debug(" QuerySOA domain: %s ", d)
 	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
@@ -253,6 +258,7 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			if e != nil {
 				switch e.ErrorNo {
 				case MyError.ERROR_SUBDOMAIN, MyError.ERROR_NOTVALID:
+					utils.ServerLogger.Error("ERROR_NOTVALID: %s", e.Error())
 					var ee *MyError.MyError
 					d, ee = GenerateParentDomain(d)
 					if ee != nil {
@@ -266,26 +272,30 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 					continue
 				case MyError.ERROR_NORESULT:
 					//					c++
-					fmt.Println(utils.GetDebugLine(), e)
-					fmt.Println("+++++++++++++++++++++++++++++++++++")
+					//fmt.Println(utils.GetDebugLine(), e)
+					utils.ServerLogger.Error("ERROR_NORESULT: %s", e.Error())
+					//fmt.Println("+++++++++++++++++++++++++++++++++++")
 					continue
 				default:
 					//					c++
-					fmt.Println(utils.GetDebugLine(), ".....................")
-					fmt.Println(utils.GetDebugLine(), e)
+					utils.ServerLogger.Error("ERROR_DEFAULT: %s", e.Error())
+					//fmt.Println(utils.GetDebugLine(), ".....................")
+					//fmt.Println(utils.GetDebugLine(), e)
 					continue
 					//					return nil, nil, e
 				}
 			} else {
 				if cap(ns_a) < 1 {
-					fmt.Println(utils.GetDebugLine(), "QuerySOA: line 223: cap(ns_a)<1, need QueryNS ", soa.Hdr.Name)
+					//fmt.Println(utils.GetDebugLine(), "QuerySOA: line 223: cap(ns_a)<1, need QueryNS ", soa.Hdr.Name)
+					utils.ServerLogger.Debug("QuerySOA: cap(ns_a)<1, need QueryNS: %s", soa.Hdr.Name)
 					ns_a, e = QueryNS(soa.Hdr.Name)
 					if e != nil {
 						//TODO: do some log
 					}
 				}
 				//				fmt.Println("============xxxxxx================")
-				fmt.Println(utils.GetDebugLine(), "QuerySOA: soa record ", soa, " ns_a: ", ns_a)
+				//fmt.Println(utils.GetDebugLine(), "QuerySOA: soa record ", soa, " ns_a: ", ns_a)
+				utils.ServerLogger.Debug("QuerySOA: soa record %v ns_a: %v", soa, ns_a)
 				return soa, ns_a, nil
 			}
 		}
@@ -302,19 +312,22 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			switch vh.Rrtype {
 			case dns.TypeSOA:
 				if vv, ok := v.(*dns.SOA); ok {
-					fmt.Print(utils.GetDebugLine(), "ParseSOA:  ", vv)
+					//fmt.Print(utils.GetDebugLine(), "ParseSOA:  ", vv)
 					soa = vv
+					utils.ServerLogger.Debug("ParseSOA: %v", vv)
 				}
 			case dns.TypeNS:
 				if vv, ok := v.(*dns.NS); ok {
 					ns_a = append(ns_a, vv)
 				}
 			default:
-				fmt.Println(utils.GetDebugLine(), " PasreSOA: error unexpect: ", v)
+				//fmt.Println(utils.GetDebugLine(), " PasreSOA: error unexpect: ", v)
+				utils.ServerLogger.Error("ParseSOA: error unexpect %v", v)
 			}
 		} else {
-			fmt.Print(utils.GetDebugLine(), "ParseSOA 258 ")
-			fmt.Println(utils.GetDebugLine(), vh.Name+" not match "+d)
+			//fmt.Print(utils.GetDebugLine(), "ParseSOA 258 ")
+			//fmt.Println(utils.GetDebugLine(), vh.Name+" not match "+d)
+			utils.ServerLogger.Debug("%s not match %s", vh.Name, d)
 			return nil, nil, MyError.NewError(MyError.ERROR_NOTVALID, d+" has no SOA record,try parent")
 		}
 
@@ -381,12 +394,14 @@ func QueryCNAME(d, srcIP string, ds []string, dp string) ([]*dns.CNAME, *dns.RR_
 	if e != nil {
 		return nil, nil, nil, e
 	}
-	fmt.Println(utils.GetDebugLine(), r)
-	fmt.Println(utils.GetDebugLine(), e)
+	//fmt.Println(utils.GetDebugLine(), r)
+	//fmt.Println(utils.GetDebugLine(), e)
 	cname_a, ok := ParseCNAME(r.Answer, d)
 	if ok != true {
 		return nil, nil, nil, MyError.NewError(MyError.ERROR_NORESULT, "No CNAME record returned")
 	}
+
+	utils.ServerLogger.Debug("QueryCNAME domain: %s srcip: %s result: %v", d, srcIP, cname_a)
 
 	var edns_header *dns.RR_Header
 	var edns *dns.EDNS0_SUBNET
@@ -550,20 +565,23 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Msg {
 	//	r := &dns.Msg{}
 	//	var ee error
-	fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
-		" ds: ", ds, " dp: ", dp, " queryType ", queryType)
+	//fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
+	//	" ds: ", ds, " dp: ", dp, " queryType ", queryType)
+	utils.ServerLogger.Debug(" doQuery: m.Question: %s ds: %s dp: %s queryType: %s", m.Question, ds, dp, queryType)
 	for l := 0; l < 3; l++ {
 		r, _, ee := c.Exchange(m, ds+":"+dp)
 		if (ee != nil) || (r == nil) || (r.Answer == nil) {
 			//		fmt.Println("errrororororororororo:")
-			fmt.Println(utils.GetDebugLine(), " retry: ", strconv.Itoa(l), " times : ", ee.Error())
+			//fmt.Println(utils.GetDebugLine(), " retry: ", strconv.Itoa(l), " times : ", ee.Error())
+			utils.ServerLogger.Error(" doQuery: retry: %s times error: %s", strconv.Itoa(l), ee.Error())
 			if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
 				if strings.Contains(ee.Error(), "connection refused") {
 					if c.Net == TCP {
 						c.Net = UDP
 					}
 				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
-					fmt.Println(utils.GetDebugLine(), "Response Truncated : ", r)
+					//fmt.Println(utils.GetDebugLine(), "Response Truncated : ", r)
+					utils.ServerLogger.Error(" doQuery: response truncated: %v", r)
 					//					m.SetEdns0(4096,false)
 					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
 					c.Net = TCP
