@@ -38,11 +38,6 @@ func GetDebugLine() string {
 		file = "???"
 		line = 1
 	}
-	//	buf := new(bytes.Buffer)
-	//	// Every line is indented at least one tab.
-	//	buf.WriteByte('\t')
-	//	fmt.Fprintf(buf, "%s:%d: ", file, line)
-	//	return buf.String()
 	return "\t" + file + ":" + strconv.Itoa(line)
 }
 
@@ -50,9 +45,7 @@ func CheckIPv4(ip string) {
 
 }
 
-func InitUitls() {
-	//	Logger := log.New(os.Stdout, "httpDispacher", log.Ldate|log.Ltime|log.Llongfile)
-	//	Logger.Println("Starting httpDispacher...")
+func InitLogger() {
 	loglevel := map[string]logging.Level{
 		"DEBUG":    logging.DEBUG,
 		"INFO":     logging.INFO,
@@ -60,7 +53,6 @@ func InitUitls() {
 		"WARNING":  logging.WARNING,
 		"ERROR":    logging.ERROR,
 		"CRITICAL": logging.CRITICAL}
-
 	qfd, e := os.OpenFile(config.RC.QueryLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if e != nil {
 		fmt.Println("Open log file ", config.RC.QueryLog, " error: ", e.Error())
@@ -73,8 +65,8 @@ func InitUitls() {
 		os.Exit(1)
 	}
 
-	backend1 := logging.NewLogBackend(qfd, "query", 0)
-	backend2 := logging.NewLogBackend(sfd, "server", 0)
+	backend1 := logging.NewLogBackend(qfd, "", 0)
+	backend2 := logging.NewLogBackend(sfd, "", 0)
 
 	backend1Formatter := logging.NewBackendFormatter(backend1, queryformat)
 	backend2Formatter := logging.NewBackendFormatter(backend2, serverformat)
@@ -88,32 +80,6 @@ func InitUitls() {
 	QueryLogger.SetBackend(backend1Leveled)
 	ServerLogger.SetBackend(backend2Leveled)
 }
-
-// Bigger than we need, not too big to worry about overflow
-const big = 0xFFFFFF
-
-func dtoi(s string, i0 int) (n int, i int, ok bool) {
-	n = 0
-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i]-'0')
-		if n >= big {
-			return 0, i, false
-		}
-	}
-	if i == i0 {
-		return 0, i, false
-	}
-	return n, i, true
-}
-
-//func IP4toInt(IPv4Address net.IP) int64 {
-//	IPv4Int := big.NewInt(0)
-//
-//	IPv4Int.SetBytes(IPv4Address.To4())
-//	fmt.Println(IPv4Int.Bytes())
-//	fmt.Printf("%v", IPv4Int.Bytes())
-//	return IPv4Int.Int64()
-//}
 
 //Convert net.IPNet to  startIP & endIP
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
@@ -145,20 +111,6 @@ func Int32ToIP4(n uint32) net.IP {
 
 //ParseEdnsIPNet, Parse ends data to *net.IPNet
 func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.MyError) {
-	//	fmt.Println(family)
-	//	iplen := 0
-	//	switch family {
-	//	case 1:
-	//		iplen = net.IPv4len
-	//	case 2:
-	//		iplen = net.IPv6len
-	//	}
-	//	n, i, ok := dtoi(string(mask), 0)
-	//	if ip == nil || !ok || i != len(string(mask)) || n < 0 || n > 8*iplen {
-	//		return nil, MyError.NewError(MyError.ERROR_NOTVALID, "ParseEdnsIPNet error, param: "+ip.String()+"/"+string(mask))
-	//	}
-	//	m := net.CIDRMask(n, 8*iplen)
-	//	return &net.IPNet{IP: ip.Mask(m), Mask: m}, nil
 	cidr := strings.Join([]string{ip.String(), strconv.Itoa(int(mask))}, "/")
 	_, ipnet, e := net.ParseCIDR(cidr)
 	if e == nil {
@@ -169,7 +121,6 @@ func ParseEdnsIPNet(ip net.IP, mask uint8, family uint16) (*net.IPNet, *MyError.
 
 //Parse *net.IPNet to ip(uint32) and mask(int)
 func IpNetToInt32(ipnet *net.IPNet) (ip uint32, mask int) {
-	//	ai, bi := uint32(0), uint32(0)
 	if ipnet == nil {
 		return uint32(1), int(1)
 	}
@@ -207,7 +158,6 @@ func GetCIDRMaskWithUint32Range(startIp, endIp uint32) int {
 				x++
 			}
 			key = key << 1
-			//		fmt.Println(key)
 		}
 		return int(32 - x)
 	}

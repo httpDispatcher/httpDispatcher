@@ -16,10 +16,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-func GetClientIP() string {
-	return "124.207.129.171"
-}
-
 func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 
 	var soa *domain.DomainSOANode
@@ -136,7 +132,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		if config.IsLocalMysqlBackend(dst) {
 			//fmt.Println(utils.GetDebugLine(), "**********************************************")
 			//need pass dn to GetAFromMySQLBackend, to fill th dn.RegionTree node
-			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, GetClientIP(), Regiontree)
+			ok, RR, rtype, ee := GetAFromMySQLBackend(dst, srcIP, Regiontree)
 			//fmt.Println(utils.GetDebugLine(), " Debug: GetAFromMySQLBackend: return ", ok,
 			//	" RR: ", RR, " error: ", ee)
 			utils.ServerLogger.Debug("GetAFromMySQLBackend: return ", ok, RR, rtype, ee)

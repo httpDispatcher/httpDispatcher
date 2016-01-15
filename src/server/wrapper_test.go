@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+func GetClientIP() string {
+	return "124.207.129.171"
+}
+
 func TestGetSOARecord(t *testing.T) {
 	soa, e := GetSOARecord("www.a.shifen.com")
 	t.Log(soa, e)
