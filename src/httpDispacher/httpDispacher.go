@@ -6,6 +6,7 @@ import (
 	"utils"
 
 	"config"
+
 	"github.com/pkg/profile"
 )
 
@@ -17,7 +18,7 @@ func main() {
 	config.InitConfig()
 	defer profile.Start(profile.CPUProfile).Stop()
 	utils.InitLogger()
-	runtime.GOMAXPROCS(8)
+	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
 	server.NewServer()
 
 }
