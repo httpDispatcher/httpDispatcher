@@ -72,10 +72,10 @@ func InitLogger() {
 	backend2Formatter := logging.NewBackendFormatter(backend2, serverformat)
 
 	backend1Leveled := logging.AddModuleLevel(backend1Formatter)
-	backend1Leveled.SetLevel(loglevel[config.RC.LogLevel], "query")
+	backend1Leveled.SetLevel(loglevel[config.RC.LogLevel], "querylog")
 
 	backend2Leveled := logging.AddModuleLevel(backend2Formatter)
-	backend2Leveled.SetLevel(loglevel[config.RC.LogLevel], "server")
+	backend2Leveled.SetLevel(loglevel[config.RC.LogLevel], "serverlog")
 
 	QueryLogger.SetBackend(backend1Leveled)
 	ServerLogger.SetBackend(backend2Leveled)

@@ -24,7 +24,6 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 	if e == nil && dn != nil {
 		dsoa_key := dn.SOAKey
 		soa, e = domain.DomainSOACache.GetDomainSOANodeFromCacheWithDomainName(dsoa_key)
-		//fmt.Println(utils.GetDebugLine(), " GOOOOOOOOOOOOT!!!", soa)
 		utils.ServerLogger.Debug("GetDomainSOANodeFromCacheWithDomainName: key: %s soa %v", dsoa_key, soa)
 		if e == nil && soa != nil {
 			return soa, nil
