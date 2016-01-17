@@ -14,6 +14,9 @@ import (
 	"github.com/op/go-logging"
 )
 
+//todo: add echeck RC.xx config to see weather query / server log is enabled
+
+//todo: change codes about Log to log module?
 var QueryLogger = logging.MustGetLogger("query")
 var ServerLogger = logging.MustGetLogger("server")
 

@@ -1,12 +1,12 @@
 package domain
 
 import (
-	"MyError"
-	//"fmt"
 	"os"
 	"reflect"
 	"sync"
 	"time"
+
+	"MyError"
 	"utils"
 
 	"github.com/miekg/bitradix"
@@ -15,8 +15,8 @@ import (
 )
 
 const DefaultNetaddr = uint32(1)
-const DefaultMask = 1
-const DefaultRedaxMask = 32
+const DefaultNetMask = 1
+const DefaultRedaxSearchMask = 32
 
 type MuLLRB struct {
 	llrb.LLRB
@@ -327,8 +327,8 @@ func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region
 		} else {
 			return nil, MyError.NewError(MyError.ERROR_NOTVALID, "Found result but not valid,need check !")
 		}
-	} else if addr != DefaultNetaddr && mask != DefaultMask {
-		return RT.GetRegionFromCacheWithAddr(DefaultNetaddr, DefaultMask)
+	} else if addr != DefaultNetaddr && mask != DefaultNetMask {
+		return RT.GetRegionFromCacheWithAddr(DefaultNetaddr, DefaultNetMask)
 	}
 	return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found search region "+string(addr)+":"+string(mask))
 }

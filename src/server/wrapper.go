@@ -180,7 +180,7 @@ func GetAFromCache(dst, srcIP string) (bool, *domain.DomainNode, []dns.RR, *MyEr
 	if e == nil && dn != nil && dn.DomainRegionTree != nil {
 		//Get DomainNode succ,
 		r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(
-			utils.Ip4ToInt32(net.ParseIP(srcIP)), domain.DefaultRedaxMask)
+			utils.Ip4ToInt32(net.ParseIP(srcIP)), domain.DefaultRedaxSearchMask)
 		//fmt.Println(utils.GetDebugLine(), "GetAFromCache : ", r, e)
 		if e == nil {
 			//fmt.Println(utils.GetDebugLine(), "GetAFromCache: Gooooot: ", r)
