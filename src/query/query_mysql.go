@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/miekg/dns"
+	"sync"
 )
 
 const (
@@ -31,20 +32,28 @@ type MySQLRegion struct {
 }
 
 type MySQLRR struct {
-	idRR uint32
+	idRR []uint32
 	//	Domain  *domain.Domain
 	RR *domain.RRNew
 }
 
+var once sync.Once
+
 var RRMySQL *RR_MySQL
+var RC_MySQLConf *config.MySQLConf
 
 //todo: "InitMySQL(config.RC.MySQLConf)" need to be refact. use RC in logic func is not so good!
 
-func init() {
-	if config.RC.MySQLEnabled {
-		InitMySQL(config.RC.MySQLConf)
-	}
-}
+//func init() {
+//  if config.RC != nil{
+//	if config.RC.MySQLEnabled {
+//		once.Do(func() {
+//			RC_MySQLConf = config.RC.MySQLConf
+//			InitMySQL(RC_MySQLConf)
+//		})
+//	}
+//}
+//}
 
 func InitMySQL(mcf *config.MySQLConf) bool {
 	for x := 0; x < 3; x++ {
@@ -62,8 +71,8 @@ func InitMySQL(mcf *config.MySQLConf) bool {
 
 func (D *RR_MySQL) GetDomainIDFromMySQL(d string) (int, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
-			return -1, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
+		if ok := InitMySQL(RC_MySQLConf); ok != true {
+			return 0, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
 	sql_string := "Select idDomainName From " + DomainTable + " Where DomainName=?"
@@ -84,7 +93,7 @@ func (D *RR_MySQL) GetDomainIDFromMySQL(d string) (int, *MyError.MyError) {
 
 func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
+		if ok := InitMySQL(RC_MySQLConf); ok != true {
 			return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
@@ -115,9 +124,9 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
 }
 
-func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) ([]*MySQLRR, *MyError.MyError) {
+func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError.MyError) {
 	if e := D.DB.Ping(); e != nil {
-		if ok := InitMySQL(config.RC.MySQLConf); ok != true {
+		if ok := InitMySQL(RC_MySQLConf); ok != true {
 			return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Connect MySQL Error")
 		}
 	}
@@ -126,32 +135,55 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) ([]*MySQLRR, *MyErr
 		" where idDomainName = ? and idRegion = ?"
 	rows, e := D.DB.Query(sqlstring, domainId, regionId)
 	if e == nil {
-		var MyRR []*MySQLRR
+		var MyRR *MySQLRR
+		var rtype_tmp uint16
+		var isHybird bool = false //if both hava dns.TypeA and dns.TypeCNAME, isHybird is true ,else false
+		var uu []uint32
+		var u, v uint32 // u is for idRRTable, v is for Ttl
+		var w, x uint16 // w is for Rrtype(5 for dns.TypdCNAME and 1 for dns.TypeA),
+		var zz []string // for Target(s)
+		var z string
+		var rows_count int
 		for rows.Next() {
-			var u, v uint32
-			var w, x uint16
-			var z string
+			rows_count++
 			e := rows.Scan(&u, &w, &x, &v, &z)
 			if e == nil {
 				fmt.Println(utils.GetDebugLine(), u, w, x, v, z)
-				MyRR = append(MyRR, &MySQLRR{
-					idRR: u,
-					RR: &domain.RRNew{
-						RrType: w,
-						Class:  x,
-						Target: z,
-					},
-				})
+				if (rtype_tmp != uint16(0)) && (rtype_tmp != w) {
+					isHybird = true
+					rtype_tmp = w
+					fmt.Println(utils.GetDebugLine(), rtype_tmp, w, u, x, v, z)
+					//rtype is not same as previous one
+				} else {
+					uu = append(uu, u)
+					zz = append(zz, z)
+				}
 			} else {
 				fmt.Println(utils.GetDebugLine(), e, rows.Err())
 				return nil, MyError.NewError(MyError.ERROR_NOTVALID, e.Error()+rows.Err().Error())
 			}
 		}
-		if len(MyRR) < 1 {
+		if rows_count > 0 {
+			fmt.Println(utils.GetDebugLine(), uu, zz)
+			if isHybird {
+				fmt.Println(utils.GetDebugLine(), "Both TypeA and TypeCNAME for domain: "+
+					strconv.Itoa(int(domainId))+" and Regionid :"+strconv.Itoa(int(regionId))+
+					", that's not good !")
+				MyRR = nil
+			} else {
+				MyRR = &MySQLRR{
+					idRR: uu,
+					RR: &domain.RRNew{
+						RrType: w,
+						Class:  x,
+						Target: zz,
+					},
+				}
+				return MyRR, nil
+			}
+		} else {
 			return nil, MyError.NewError(MyError.ERROR_NORESULT, "No Result for domainId : "+strconv.Itoa(int(domainId))+" RegionID: "+strconv.Itoa(int(regionId)))
 		}
-		fmt.Println(utils.GetDebugLine(), MyRR)
-		return MyRR, nil
 	}
 	fmt.Println(utils.GetDebugLine(), e)
 	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, e.Error())

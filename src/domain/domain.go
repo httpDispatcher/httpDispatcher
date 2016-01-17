@@ -66,7 +66,7 @@ type RRNew struct {
 	RrType uint16
 	Class  uint16
 	Ttl    uint32
-	Target string
+	Target []string
 }
 
 type RegionNew struct {
