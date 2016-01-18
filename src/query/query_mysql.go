@@ -13,7 +13,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/miekg/dns"
-	"sync"
 )
 
 const (
@@ -37,22 +36,21 @@ type MySQLRR struct {
 	RR *domain.RRNew
 }
 
-var once sync.Once
-
 var RRMySQL *RR_MySQL
 var RC_MySQLConf *config.MySQLConf
 
 //todo: "InitMySQL(config.RC.MySQLConf)" need to be refact. use RC in logic func is not so good!
 
 //func init() {
-//  if config.RC != nil{
-//	if config.RC.MySQLEnabled {
-//		once.Do(func() {
+//	fmt.Println(config.RC)
+//	if config.RC != nil {
+//		if config.RC.MySQLEnabled {
 //			RC_MySQLConf = config.RC.MySQLConf
 //			InitMySQL(RC_MySQLConf)
-//		})
+//		}
+//	}else {
+//		panic("config.RC is nil")
 //	}
-//}
 //}
 
 func InitMySQL(mcf *config.MySQLConf) bool {
@@ -111,7 +109,7 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 	default:
 		fmt.Println(utils.GetDebugLine(), "GetRegionWithIPFromMySQL: ",
 			" idRegion: ", idRegion, " StartIP: ", StartIP, " EndIP: ", EndIP, " NetAddr: ",
-			NetAddr, " NetMask: ", NetMask)
+			NetAddr, " NetMask: ", NetMask, " srcIP: ", utils.Int32ToIP4(ip).String())
 		return &MySQLRegion{
 			IdRegion: idRegion,
 			Region: &domain.RegionNew{

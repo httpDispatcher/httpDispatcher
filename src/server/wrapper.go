@@ -1,17 +1,17 @@
 package server
 
 import (
-	"MyError"
-	"domain"
 	"net"
 	"os"
-	"query"
 	"reflect"
-	"time"
-	"utils"
-
-	"config"
 	"strconv"
+	"time"
+
+	"MyError"
+	"config"
+	"domain"
+	"query"
+	"utils"
 
 	"github.com/miekg/dns"
 )
@@ -249,7 +249,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+e.Error())
 	}
 	RR, eee := query.RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
-	if eee != nil {
+	if eee != nil && eee.ErrorNo == MyError.ERROR_NORESULT {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
 		//	"RegionID:", region.IdRegion, eee)
 		//fmt.Println(utils.GetDebugLine(), "Try to GetRRFromMySQL with Default Region")
@@ -260,68 +260,72 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 			//	"RegionID:", 0, eee)
 			return false, nil, uint16(0), MyError.NewError(eee.ErrorNo, "Error GetRRFromMySQL with DomainID:"+strconv.Itoa(domainId)+eee.Error())
 		}
+	} else if eee != nil {
+		utils.ServerLogger.Error(eee.Error())
+		return false, nil, uint16(0), eee
 	}
 	//fmt.Println(utils.GetDebugLine(), "GetRRFromMySQL Succ!:", RR)
 	utils.ServerLogger.Debug("GetRRFromMySQL Succ!: ", RR)
-	if len(RR) > 0 {
-		var R []dns.RR
-		var rtype uint16
-		var reE *MyError.MyError
-		for _, mr := range RR {
-			//fmt.Println(utils.GetDebugLine(), mr.RR)
-			hdr := dns.RR_Header{
-				Name:   dst,
-				Class:  mr.RR.Class,
-				Rrtype: mr.RR.RrType,
-				Ttl:    mr.RR.Ttl,
+	var R []dns.RR
+	var rtype uint16
+	var reE *MyError.MyError
+	hdr := dns.RR_Header{
+		Name:   dst,
+		Class:  RR.RR.Class,
+		Rrtype: RR.RR.RrType,
+		Ttl:    RR.RR.Ttl,
+	}
+
+	//fmt.Println(utils.GetDebugLine(), mr.RR)
+	if RR.RR.RrType == dns.TypeA {
+		for _, mr := range RR.RR.Target {
+			rh := &dns.A{
+				Hdr: hdr,
+				A:   utils.StrToIP(mr),
 			}
-			if mr.RR.RrType == dns.TypeA {
-				rh := &dns.A{
-					Hdr: hdr,
-					A:   utils.StrToIP(mr.RR.Target),
-				}
-				R = append(R, dns.RR(rh))
-				rtype = dns.TypeA
-				//	fmt.Println(utils.GetDebugLine(), "Get A RR from MySQL, requery dst:", dst)
-			} else if mr.RR.RrType == dns.TypeCNAME {
-				rh := &dns.CNAME{
-					Hdr:    hdr,
-					Target: mr.RR.Target,
-				}
-				R = append(R, dns.RR(rh))
-				rtype = dns.TypeCNAME
-				//fmt.Println(utils.GetDebugLine(), "Get CNAME RR from MySQL, requery dst:", dst)
-				reE = MyError.NewError(MyError.ERROR_NOTVALID,
-					"Got CNAME result for dst : "+dst+" with srcIP : "+srcIP)
+			R = append(R, dns.RR(rh))
+		}
+		rtype = dns.TypeA
+		//	fmt.Println(utils.GetDebugLine(), "Get A RR from MySQL, requery dst:", dst)
+	} else if RR.RR.RrType == dns.TypeCNAME {
+		for _, mr := range RR.RR.Target {
+			rh := &dns.CNAME{
+				Hdr:    hdr,
+				Target: mr,
 			}
+			R = append(R, dns.RR(rh))
 		}
-		//fmt.Println(utils.GetDebugLine(), R)
-		if len(R) > 0 {
-			//Add timer for auto refrech the RegionCache
-			go func(dst, srcIP string, r dns.RR, regionTree *domain.RegionTree) {
-				//fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
-				//	" Second, dst: ", dst, " srcIP: ", srcIP, "add timer ")
-				time.AfterFunc(time.Duration(r.Header().Ttl-5)*time.Second,
-					func() { GetAFromMySQLBackend(dst, srcIP, regionTree) })
-			}(dst, srcIP, R[0], regionTree)
+		rtype = dns.TypeCNAME
+		//fmt.Println(utils.GetDebugLine(), "Get CNAME RR from MySQL, requery dst:", dst)
+		reE = MyError.NewError(MyError.ERROR_NOTVALID,
+			"Got CNAME result for dst : "+dst+" with srcIP : "+srcIP)
+	}
 
-			go func(regionTree *domain.RegionTree, R []dns.RR, srcIP string) {
-				//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
+	if len(R) > 0 {
+		//Add timer for auto refrech the RegionCache
+		go func(dst, srcIP string, r dns.RR, regionTree *domain.RegionTree) {
+			//fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
+			//	" Second, dst: ", dst, " srcIP: ", srcIP, "add timer ")
+			time.AfterFunc(time.Duration(r.Header().Ttl-5)*time.Second,
+				func() { GetAFromMySQLBackend(dst, srcIP, regionTree) })
+		}(dst, srcIP, R[0], regionTree)
 
-				startIP, endIP := region.Region.StarIP, region.Region.EndIP
-				cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
+		go func(regionTree *domain.RegionTree, R []dns.RR, srcIP string) {
+			//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
 
-				//fmt.Println(utils.GetDebugLine(), " GetRegionWithIPFromMySQL with srcIP: ",
-				//	srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
-				//	" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
-				//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
-				r, _ := domain.NewRegion(R, startIP, cidrmask)
-				regionTree.AddRegionToCache(r)
-				//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
-				//				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
-			}(regionTree, R, srcIP)
-			return true, R, rtype, reE
-		}
+			startIP, endIP := region.Region.StarIP, region.Region.EndIP
+			cidrmask := utils.GetCIDRMaskWithUint32Range(startIP, endIP)
+
+			//fmt.Println(utils.GetDebugLine(), " GetRegionWithIPFromMySQL with srcIP: ",
+			//	srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
+			//	" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
+			//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
+			r, _ := domain.NewRegion(R, startIP, cidrmask)
+			regionTree.AddRegionToCache(r)
+			//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
+			//				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
+		}(regionTree, R, srcIP)
+		return true, R, rtype, reE
 	}
 	return false, nil, uint16(0), MyError.NewError(MyError.ERROR_UNKNOWN, utils.GetDebugLine()+"Unknown Error ")
 

@@ -5,6 +5,8 @@ import (
 	"config"
 	"os"
 	"testing"
+
+	"github.com/miekg/dns"
 )
 
 func TestMain(m *testing.M) {
@@ -14,11 +16,10 @@ func TestMain(m *testing.M) {
 	//	}
 	config.ParseConf("/Users/chunsheng/Dropbox/Work/Sina/08.Projects/16.httpDispacher/conf/httpdispacher.toml")
 	if config.RC.MySQLEnabled {
-		once.Do(func() {
-			RC_MySQLConf = config.RC.MySQLConf
-			InitMySQL(RC_MySQLConf)
-		})
+		RC_MySQLConf = config.RC.MySQLConf
+		InitMySQL(RC_MySQLConf)
 	}
+
 	m.Run()
 	os.Exit(1)
 }
@@ -77,19 +78,46 @@ func TestGetRRFromMySQL(t *testing.T) {
 			x, e := RRMySQL.GetRRFromMySQL(d, id)
 			if e == nil {
 				t.Log("DomainId: ", d, " RegionId: ", id, "result:", x.idRR, x.RR)
-				//				for _, xx := range x {
-				//					t.Log(xx, xx.RR)
-				//					if xx.RR.RrType == dns.TypeA {
-				//						t.Log("A RR")
-				//					} else if xx.RR.RrType == dns.TypeCNAME {
-				//						t.Log("CNAME RR")
-				//					}
-				//				}
+				if x.RR.RrType == dns.TypeA {
+					t.Log("A RR")
+				} else if x.RR.RrType == dns.TypeCNAME {
+					t.Log("CNAME RR")
+				}
 			} else {
 				t.Log(e)
 				if e.ErrorNo == MyError.ERROR_NORESULT {
 				} else {
 					t.Fail()
+				}
+			}
+		}
+	}
+}
+
+func BenchmarkGetRRfFromMySQL(b *testing.B) {
+	d_a := []uint32{1, 2, 6, 7, 9}
+	r_a := []uint32{0, 1, 2, 6, 7, 8}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, d := range d_a {
+			for _, id := range r_a {
+				x, e := RRMySQL.GetRRFromMySQL(d, id)
+				if e == nil {
+					b.Log("DomainId: ", d, " RegionId: ", id, "result:", x.idRR, x.RR)
+					//				for _, xx := range x {
+					//					t.Log(xx, xx.RR)
+					//					if xx.RR.RrType == dns.TypeA {
+					//						t.Log("A RR")
+					//					} else if xx.RR.RrType == dns.TypeCNAME {
+					//						t.Log("CNAME RR")
+					//					}
+					//				}
+				} else {
+					b.Log(e)
+					if e.ErrorNo == MyError.ERROR_NORESULT {
+					} else {
+						b.Fail()
+					}
 				}
 			}
 		}

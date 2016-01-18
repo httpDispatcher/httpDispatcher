@@ -25,7 +25,7 @@ var queryformat = logging.MustStringFormatter(
 )
 
 var serverformat = logging.MustStringFormatter(
-	`%{time:2006-01-02T15:04:05} %{longfile} ▶ %{level:.4s} %{id:03x}%{message}`,
+	`%{time:2006-01-02T15:04:05} %{shortfile} ▶ %{level:.4s} %{id:03x}%{message}`,
 )
 
 func GetDebugLine() string {
