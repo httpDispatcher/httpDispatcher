@@ -8,6 +8,7 @@ import (
 	"config"
 
 	"github.com/pkg/profile"
+	"query"
 )
 
 // param: lower case + Upper Case ,No _ spliter
@@ -15,10 +16,15 @@ import (
 // Func: golang style
 
 func main() {
-	config.InitConfig()
-	defer profile.Start(profile.CPUProfile).Stop()
-	utils.InitLogger()
 	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
+	defer profile.Start(profile.CPUProfile).Stop()
+
+	config.InitConfig()
+	utils.InitLogger()
+	if config.RC.MySQLEnabled {
+		query.RC_MySQLConf = config.RC.MySQLConf
+		query.InitMySQL(query.RC_MySQLConf)
+	}
 	server.NewServer()
 
 }
