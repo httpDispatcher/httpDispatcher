@@ -23,14 +23,6 @@ const (
 	DEFAULT_SOURCESCOPE = 0
 )
 
-// type RR , dns record
-type RR struct {
-	Record []string
-	Rrtype uint16
-	Class  uint16
-	Ttl    uint32
-}
-
 // type Query , dns Query type and Query result
 type Query struct {
 	QueryType     uint16
@@ -244,7 +236,8 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 		r, e := DoQuery(d, cf.Servers, cf.Port, dns.TypeSOA, nil, UDP)
 		//		fmt.Println(r)
 		if e != nil {
-			//			c++
+			utils.QueryLogger.Error("QeurySOA got error : "+e.Error()+
+				". Param: %s , %v, %s, %v ", d, cf.Servers, cf.Port, dns.TypeSOA)
 			continue
 		} else {
 			var rr []dns.RR
@@ -567,7 +560,7 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16) *dns.Ms
 	//	var ee error
 	//fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
 	//	" ds: ", ds, " dp: ", dp, " queryType ", queryType)
-	utils.ServerLogger.Debug(" doQuery: m.Question: %s ds: %s dp: %s queryType: %s", m.Question, ds, dp, queryType)
+	utils.ServerLogger.Debug(" doQuery: m.Question: %v ds: %s dp: %s queryType: %v", m.Question, ds, dp, queryType)
 	for l := 0; l < 3; l++ {
 		r, _, ee := c.Exchange(m, ds+":"+dp)
 		if (ee != nil) || (r == nil) || (r.Answer == nil) {

@@ -21,11 +21,11 @@ var QueryLogger = logging.MustGetLogger("query")
 var ServerLogger = logging.MustGetLogger("server")
 
 var queryformat = logging.MustStringFormatter(
-	`%{time:2006-01-02T15:04:05} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{message}`,
+	`%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}`,
 )
 
 var serverformat = logging.MustStringFormatter(
-	`%{time:2006-01-02T15:04:05} %{shortfile} ▶ %{level:.4s} %{id:03x}%{message}`,
+	`%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}`,
 )
 
 func GetDebugLine() string {

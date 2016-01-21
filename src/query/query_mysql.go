@@ -61,7 +61,7 @@ func InitMySQL(mcf *config.MySQLConf) bool {
 			RRMySQL = &RR_MySQL{DB: db}
 			return true
 		} else {
-			fmt.Println(utils.GetDebugLine(), err)
+			fmt.Println("Connect MySQL faile with conf: %v, error: %v", mcf, err.Error())
 		}
 	}
 	return false
@@ -146,26 +146,26 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError
 			rows_count++
 			e := rows.Scan(&u, &w, &x, &v, &z)
 			if e == nil {
-				fmt.Println(utils.GetDebugLine(), u, w, x, v, z)
+				utils.QueryLogger.Debug(" got row : %v,%v,%v,%v,%v ", u, w, x, v, z)
 				if (rtype_tmp != uint16(0)) && (rtype_tmp != w) {
 					isHybird = true
 					rtype_tmp = w
-					fmt.Println(utils.GetDebugLine(), rtype_tmp, w, u, x, v, z)
+					utils.QueryLogger.Debug(" got row: %v,%v,%v,%v,%v,%v,%v", rtype_tmp, w, u, x, v, z, isHybird)
 					//rtype is not same as previous one
 				} else {
 					uu = append(uu, u)
 					zz = append(zz, z)
 				}
 			} else {
-				fmt.Println(utils.GetDebugLine(), e, rows.Err())
+				utils.QueryLogger.Error(" rows.Scan error %s ,%v", e.Error(), rows.Err())
 				return nil, MyError.NewError(MyError.ERROR_NOTVALID, e.Error()+rows.Err().Error())
 			}
 		}
 		if rows_count > 0 {
-			fmt.Println(utils.GetDebugLine(), uu, zz)
+			utils.QueryLogger.Debug("get uu: %v, zz: %v", uu, zz)
 			if isHybird {
-				fmt.Println(utils.GetDebugLine(), "Both TypeA and TypeCNAME for domain: "+
-					strconv.Itoa(int(domainId))+" and Regionid :"+strconv.Itoa(int(regionId))+
+				utils.QueryLogger.Info("Both TypeA and TypeCNAME for domain: " +
+					strconv.Itoa(int(domainId)) + " and Regionid :" + strconv.Itoa(int(regionId)) +
 					", that's not good !")
 				MyRR = nil
 			} else {
@@ -183,7 +183,7 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError
 			return nil, MyError.NewError(MyError.ERROR_NORESULT, "No Result for domainId : "+strconv.Itoa(int(domainId))+" RegionID: "+strconv.Itoa(int(regionId)))
 		}
 	}
-	fmt.Println(utils.GetDebugLine(), e)
+	utils.QueryLogger.Error("MySQL query error: %v", e)
 	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, e.Error())
 
 }
