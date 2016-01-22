@@ -3,7 +3,6 @@ package query
 import (
 	"MyError"
 	"database/sql"
-	"fmt"
 	"utils"
 
 	"domain"
@@ -61,7 +60,7 @@ func InitMySQL(mcf *config.MySQLConf) bool {
 			RRMySQL = &RR_MySQL{DB: db}
 			return true
 		} else {
-			fmt.Println("Connect MySQL faile with conf: %v, error: %v", mcf, err.Error())
+			utils.QueryLogger.Error("Connect MySQL faile with conf: %v, error: %v", mcf, err.Error())
 		}
 	}
 	return false
@@ -100,14 +99,14 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 	ee := D.DB.QueryRow(sqlstring, ip, ip).Scan(&idRegion, &StartIP, &EndIP, &NetAddr, &NetMask)
 	switch {
 	case ee == sql.ErrNoRows:
-		fmt.Println(utils.GetDebugLine(), ee)
+		utils.QueryLogger.Error(ee.Error())
 		return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found for Region for IP: "+strconv.Itoa(int(ip)))
 	case ee != nil:
-		fmt.Println(utils.GetDebugLine(), ee)
+		utils.QueryLogger.Error(ee.Error())
 
 		return nil, MyError.NewError(MyError.ERROR_UNKNOWN, ee.Error())
 	default:
-		fmt.Println(utils.GetDebugLine(), "GetRegionWithIPFromMySQL: ",
+		utils.QueryLogger.Debug("GetRegionWithIPFromMySQL: ",
 			" idRegion: ", idRegion, " StartIP: ", StartIP, " EndIP: ", EndIP, " NetAddr: ",
 			NetAddr, " NetMask: ", NetMask, " srcIP: ", utils.Int32ToIP4(ip).String())
 		return &MySQLRegion{
