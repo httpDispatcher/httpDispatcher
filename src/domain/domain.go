@@ -19,13 +19,13 @@ const DefaultNetMask = 1
 const DefaultRedaxSearchMask = 32
 
 type MuLLRB struct {
-	llrb.LLRB
-	sync.Mutex
+	LLRB  *llrb.LLRB
+	Mutex *sync.Mutex
 }
 
 type MubitRadix struct {
 	Radix32 *bitradix.Radix32
-	sync.Mutex
+	Mutex   *sync.Mutex
 }
 
 //For domain name and Region RR
@@ -125,8 +125,14 @@ func init() {
 
 func InitCache() *MyError.MyError {
 	once.Do(func() {
-		DomainRRCache = &DomainRRTree{}
-		DomainSOACache = &DomainSOATree{}
+		DomainRRCache = &DomainRRTree{
+			LLRB:  llrb.New(),
+			Mutex: &sync.Mutex{},
+		}
+		DomainSOACache = &DomainSOATree{
+			LLRB:  llrb.New(),
+			Mutex: &sync.Mutex{},
+		}
 	})
 	return nil
 }
@@ -311,6 +317,7 @@ func initDomainRegionTree() *RegionTree {
 	//	tbitRadix := bitradix.New32()
 	return &RegionTree{
 		Radix32: bitradix.New32(),
+		Mutex:   &sync.Mutex{},
 	}
 }
 
