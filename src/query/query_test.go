@@ -1,8 +1,11 @@
 package query
 
 import (
+	"MyError"
+	"config"
 	"reflect"
 	"testing"
+	"utils"
 
 	"github.com/miekg/dns"
 )
@@ -13,77 +16,22 @@ var cnamemap = map[string]string{
 	"weiboimg.gslb.sinaedge.com": "weiboimg.grid.sinaedge.com.",
 }
 var ttlmap = map[string]uint32{
-	"ww2.sinaimg.cn":             uint32(60),
+	"ww2.sinaimg.cn":             uint32(600),
 	"www.baidu.com":              uint32(1200),
 	"weiboimg.gslb.sinaedge.com": uint32(600),
 }
 
-//func Test_preQuery(t *testing.T) {
-//	d := "ww2.sinaimg.cn."
-//	ds,dp ,o, e := preQuery(d, false)
-//	if e != nil {
-//		t.Fail()
-//	}
-//	if ds != "ns1.sina.com.cn." {
-//		t.Fail()
-//	}
-//	if dp != "53" {
-//		t.Fail()
-//	}
-//	if o != nil {
-//		t.Fail()
-//	}
-//
-//	d = "www.baidu.com"
-//	ds, dp, o, e = preQuery(d, true)
-//	if e != nil {
-//		t.Fail()
-//	}
-//	if ds != "ns2.baidu.com." {
-//		t.Fail()
-//	}
-//	if dp != "53" {
-//		t.Fail()
-//	}
-//	//	t.Log(e)
-//	//	t.Log(ds)
-//	//	t.Log(dp)
-//	//	t.Log(o)
-//	if o.Hdr.Name != "." {
-//		t.Log(o.Hdr.Name)
-//		t.Log("a")
-//		t.Fail()
-//	}
-//	if o.Option[0].(*dns.EDNS0_SUBNET).Code != dns.EDNS0SUBNET {
-//		t.Log("b")
-//		t.Fail()
-//	}
-//
-//	d = "www.a.shifen.com"
-//	ds, dp, o, e = preQuery(d, true)
-//	if e != nil {
-//		t.Log(e.Msg)
-//		t.Fail()
-//	}
-//	if o.Hdr.Rrtype != dns.TypeOPT {
-//		t.Log(o)
-//		t.Fail()
-//	}
-//	if cap(o.Option) != 1 {
-//		t.Log(o.Option)
-//		t.Fail()
-//	}
-//	x := o.Option[0].(*dns.EDNS0_SUBNET)
-//	if x == nil {
-//		t.Log(o.Option)
-//		t.Fail()
-//	} else {
-//		//		fmt.Println(x.Address)
-//		//		fmt.Println(x.Code)
-//		//		fmt.Println(x.SourceNetmask)
-//		//		fmt.Println(x.SourceScope)
-//	}
-//}
+func TestMain(m *testing.M) {
+	config.ParseConf("/Users/chunsheng/GooleDrive/Work/Sina/08.Projects/16.httpDispacher/conf/httpdispacher.toml")
+	if config.RC.MySQLEnabled {
+		RC_MySQLConf = config.RC.MySQLConf
+		InitMySQL(RC_MySQLConf)
+	}
+	utils.InitLogger()
+
+	m.Run()
+	//	os.Exit(1)
+}
 
 func TestPackEdns0SubnetOPT(t *testing.T) {
 	var sm = uint8(32)
@@ -159,7 +107,6 @@ func testQueryCNAME(t *testing.T, d string) {
 func TestQueryCNAME(t *testing.T) {
 	testQueryCNAME(t, "ww2.sinaimg.cn")
 	testQueryCNAME(t, "www.baidu.com")
-	testQueryCNAME(t, "weiboimg.gslb.sinaedge.com")
 }
 
 func testQueryNS(d string, t *testing.T) {
@@ -183,7 +130,6 @@ func testQueryNS(d string, t *testing.T) {
 
 func TestQueryNS(t *testing.T) {
 	testQueryNS("a.shifen.com", t)
-	testQueryA("img.alicdn.com", t)
 	testQueryNS("sinaimg.cn", t)
 	testQueryNS("sinaedge.com", t)
 	testQueryNS("danuoyi.alicdn.com.", t)
@@ -347,4 +293,169 @@ func TestQuerySOA(t *testing.T) {
 		t.Log(ns_a)
 		t.Log("----------------------------------")
 	}
+}
+
+func TestInitMySQL(t *testing.T) {
+	if config.RC.MySQLEnabled {
+		db := InitMySQL(RC_MySQLConf)
+		if db != false {
+			t.Log("InitMySQL OK")
+		} else {
+			t.Fail()
+		}
+	}
+}
+
+func TestGetDomainIDFromMySQL(t *testing.T) {
+	d_a := []string{
+		"www.sina.com.cn",
+		"www.baidu.com",
+		"www.a.shifen.com",
+		"api.weibo.cn",
+		"weibo.cn",
+		"sinaedge.com",
+		"ww2.sinaimg.cn",
+	}
+
+	if config.RC.MySQLEnabled {
+		for _, d := range d_a {
+
+			t.Log(d)
+			id, e := RRMySQL.GetDomainIDFromMySQL(d)
+			if e != nil {
+				t.Log(id)
+				t.Log(e)
+				//			t.Fail()
+			} else {
+				t.Log(d)
+				t.Log(id)
+			}
+		}
+	}
+}
+
+func TestGetRegionWithIPFromMySQL(t *testing.T) {
+	if config.RC.MySQLEnabled {
+		// d_a := []string{"www.sina.com.cn", "www.baidu.com", "www.a.shifen.com", "api.weibo.cn", "weibo.cn", "sinaedge.com"}
+		ipuint32 := uint32(1790519448)
+		id, e := RRMySQL.GetRegionWithIPFromMySQL(ipuint32)
+		if e == nil {
+			t.Log(id.Region)
+		} else {
+			t.Log(e)
+		}
+	}
+}
+
+func TestGetRRFromMySQL(t *testing.T) {
+	if config.RC.MySQLEnabled {
+		t.Log("Test..")
+		d_a := []uint32{1, 2, 6, 7, 9}
+		r_a := []uint32{0, 1, 2, 6, 7, 8}
+		for _, d := range d_a {
+			for _, id := range r_a {
+				x, e := RRMySQL.GetRRFromMySQL(d, id)
+				if e == nil {
+					t.Log("DomainId: ", d, " RegionId: ", id, "result:", x.idRR, x.RR)
+					if x.RR.RrType == dns.TypeA {
+						t.Log("A RR")
+					} else if x.RR.RrType == dns.TypeCNAME {
+						t.Log("CNAME RR")
+					}
+				} else {
+					t.Log(e)
+					if e.ErrorNo == MyError.ERROR_NORESULT {
+					} else {
+						t.Fail()
+					}
+				}
+			}
+		}
+	}
+}
+
+//func BenchmarkGetRRfFromMySQL(b *testing.B) {
+//	d_a := []uint32{1, 2, 6, 7, 9}
+//	r_a := []uint32{0, 1, 2, 6, 7, 8}
+//	b.ResetTimer()
+//	for i := 0; i < 10; i++ {
+//		for _, d := range d_a {
+//			for _, id := range r_a {
+//				x, e := RRMySQL.GetRRFromMySQL(d, id)
+//				if e == nil {
+//					b.Log("DomainId: ", d, " RegionId: ", id, "result:", x.idRR, x.RR)
+//					//				for _, xx := range x {
+//					//					t.Log(xx, xx.RR)
+//					//					if xx.RR.RrType == dns.TypeA {
+//					//						t.Log("A RR")
+//					//					} else if xx.RR.RrType == dns.TypeCNAME {
+//					//						t.Log("CNAME RR")
+//					//					}
+//					//				}
+//				} else {
+//					b.Log(e)
+//					if e.ErrorNo == MyError.ERROR_NORESULT {
+//					} else {
+//						//						b.Fail()
+//					}
+//				}
+//			}
+//		}
+//	}
+//}
+
+func BenchmarkQuerySOA(b *testing.B) {
+	dsmap := map[string]string{
+		"baidu.com":                          "xxxx",
+		"www.yahoo.com":                      "bbb",
+		"yahoo.com":                          "zzzz",
+		"weibo.cn":                           "xxxx",
+		"www.baidu.com":                      "ns2.baidu.com.",
+		"www.a.shifen.com":                   "ns1.a.shifen.com.",
+		"a.shifen.com":                       "ns1.a.shifen.com.",
+		"www2.sinaimg.cn":                    "ns1.sina.com.cn.",
+		"weboimg.gslb.sinaedge.com":          "ns2.sinaedge.com.",
+		"api.weibo.cn":                       "ns1.sina.com.cn.",
+		"img.alicdn.com":                     "ns8.alibabaonline.com.",
+		"alicdn.com":                         "yyyy",
+		"img.alicdn.com.danuoyi.alicdn.com.": "danuoyinewns1.gds.alicdn.com.",
+		"danuoyi.alicdn.com.":                "xxxxx",
+		"fjdsljflsj.jfslj":                   "...",
+	}
+	for i := 0; i < b.N; i++ {
+		for k, _ := range dsmap {
+			b.Log("----------------------------------")
+			b.Log(k)
+			soa, ns_a, e := QuerySOA(k)
+			if e == nil {
+				b.Log(soa, ns_a)
+				//				t.Log(soa.Hdr.Name)
+				//				t.Log(soa.Hdr.Rrtype)
+				//				t.Log(soa.Hdr.Class)
+				//				t.Log(soa.Ns)
+				//				t.Log(soa.Expire)
+				//				t.Log(soa.Mbox)
+				//				t.Log(soa.Minttl)
+				//				t.Log(soa.Retry)
+			} else {
+				b.Log(e)
+			}
+		}
+	}
+	b.ReportAllocs()
+}
+
+func BenchmarkQueryCNAME(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		QueryCNAME("api.weibo.cn", "202.106.0.20", []string{"114.114.114.114"}, "53")
+	}
+	b.ReportAllocs()
+}
+
+func BenchmarkQueryA(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		QueryA("www.baidu.com", "201.106.0.20", []string{"114.114.114.114"}, "53")
+		//		b.Log(a_a, edns_h, edns, e)
+	}
+	b.ReportAllocs()
 }
