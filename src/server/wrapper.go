@@ -246,7 +246,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 	region, ee := query.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
 	if ee != nil {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
-		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+e.Error())
+		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+ee.Error())
 	}
 	RR, eee := query.RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
 	if eee != nil && eee.ErrorNo == MyError.ERROR_NORESULT {
