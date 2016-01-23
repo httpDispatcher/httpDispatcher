@@ -1,17 +1,17 @@
 package server
 
 import (
-	"config"
-	"domain"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
-	"utils"
-
+	"query"
 	"strings"
 	"time"
+
+	"config"
+	"errors"
+	"utils"
 
 	"github.com/miekg/dns"
 )
@@ -45,7 +45,7 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, r.Header)
 	fmt.Fprintln(w, r.RequestURI)
 	//fmt.Println(w, r.URL)
-	t, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(query_string)
+	t, e := query.DomainRRCache.GetDomainNodeFromCacheWithName(query_string)
 	if e == nil {
 		t.DomainRegionTree.TraverseRegionTree()
 	} else {

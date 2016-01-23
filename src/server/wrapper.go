@@ -9,21 +9,20 @@ import (
 
 	"MyError"
 	"config"
-	"domain"
 	"query"
 	"utils"
 
 	"github.com/miekg/dns"
 )
 
-func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
+func GetSOARecord(d string) (*query.DomainSOANode, *MyError.MyError) {
 
-	var soa *domain.DomainSOANode
+	var soa *query.DomainSOANode
 
-	dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(d)
+	dn, e := query.DomainRRCache.GetDomainNodeFromCacheWithName(d)
 	if e == nil && dn != nil {
 		dsoa_key := dn.SOAKey
-		soa, e = domain.DomainSOACache.GetDomainSOANodeFromCacheWithDomainName(dsoa_key)
+		soa, e = query.DomainSOACache.GetDomainSOANodeFromCacheWithDomainName(dsoa_key)
 		utils.ServerLogger.Debug("GetDomainSOANodeFromCacheWithDomainName: key: %s soa %v", dsoa_key, soa)
 		if e == nil && soa != nil {
 			return soa, nil
@@ -35,15 +34,15 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 	soa_t, ns, e := query.QuerySOA(d)
 	// Need to store DomainSOANode and DomainNOde both
 	if e == nil && soa_t != nil && ns != nil {
-		soa = &domain.DomainSOANode{
+		soa = &query.DomainSOANode{
 			SOAKey: soa_t.Hdr.Name,
 			SOA:    soa_t,
 			NS:     ns,
 		}
 		//TODO: get StoreDomainSOANode return values
-		go domain.DomainSOACache.StoreDomainSOANodeToCache(soa)
-		rrnode, _ := domain.NewDomainNode(d, soa.SOAKey, soa_t.Expire)
-		go domain.DomainRRCache.StoreDomainNodeToCache(rrnode)
+		go query.DomainSOACache.StoreDomainSOANodeToCache(soa)
+		rrnode, _ := query.NewDomainNode(d, soa.SOAKey, soa_t.Expire)
+		go query.DomainRRCache.StoreDomainNodeToCache(rrnode)
 		return soa, nil
 	}
 	//	}
@@ -52,7 +51,7 @@ func GetSOARecord(d string) (*domain.DomainSOANode, *MyError.MyError) {
 }
 
 func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
-	var Regiontree *domain.RegionTree
+	var Regiontree *query.RegionTree
 	var bigloopflag bool = false // big loop flag
 	var c = 0                    //big loop count
 
@@ -98,7 +97,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 		//	" cc: ", cc, " (cacheflag == false) && (cc < 5) ", (cacheflag == false) && (cc < 5))
 		for cacheflag = false; (cacheflag == false) && (cc < 5); {
 			// wait for goroutine 'StoreDomainNodeToCache' in GetSOARecord to be finished
-			dn, e = domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
+			dn, e = query.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 			if e != nil {
 				// here ,may be nil
 				// error! need return
@@ -174,13 +173,13 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error")
 }
 
-func GetAFromCache(dst, srcIP string) (bool, *domain.DomainNode, []dns.RR, *MyError.MyError) {
-	dn, e := domain.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
+func GetAFromCache(dst, srcIP string) (bool, *query.DomainNode, []dns.RR, *MyError.MyError) {
+	dn, e := query.DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 	//fmt.Println(utils.GetDebugLine(), "GetAFromCache:", dn, e)
 	if e == nil && dn != nil && dn.DomainRegionTree != nil {
 		//Get DomainNode succ,
 		r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(
-			utils.Ip4ToInt32(net.ParseIP(srcIP)), domain.DefaultRedaxSearchMask)
+			utils.Ip4ToInt32(net.ParseIP(srcIP)), query.DefaultRedaxSearchMask)
 		//fmt.Println(utils.GetDebugLine(), "GetAFromCache : ", r, e)
 		if e == nil {
 			//fmt.Println(utils.GetDebugLine(), "GetAFromCache: Gooooot: ", r)
@@ -236,7 +235,7 @@ func GetAFromCache(dst, srcIP string) (bool, *domain.DomainNode, []dns.RR, *MyEr
 	return false, nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
 }
 
-func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
+func GetAFromMySQLBackend(dst, srcIP string, regionTree *query.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
 	domainId, e := query.RRMySQL.GetDomainIDFromMySQL(dst)
 	if e != nil {
 		//todo:
@@ -303,14 +302,14 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 
 	if len(R) > 0 {
 		//Add timer for auto refrech the RegionCache
-		go func(dst, srcIP string, r dns.RR, regionTree *domain.RegionTree) {
+		go func(dst, srcIP string, r dns.RR, regionTree *query.RegionTree) {
 			//fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
 			//	" Second, dst: ", dst, " srcIP: ", srcIP, "add timer ")
 			time.AfterFunc(time.Duration(r.Header().Ttl-5)*time.Second,
 				func() { GetAFromMySQLBackend(dst, srcIP, regionTree) })
 		}(dst, srcIP, R[0], regionTree)
 
-		go func(regionTree *domain.RegionTree, R []dns.RR, srcIP string) {
+		go func(regionTree *query.RegionTree, R []dns.RR, srcIP string) {
 			//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", e)
 
 			startIP, endIP := region.Region.StarIP, region.Region.EndIP
@@ -319,8 +318,8 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 			//fmt.Println(utils.GetDebugLine(), " GetRegionWithIPFromMySQL with srcIP: ",
 			//	srcIP, " StartIP : ", startIP, "==", utils.Int32ToIP4(startIP).String(),
 			//	" EndIP: ", endIP, "==", utils.Int32ToIP4(endIP).String(), " cidrmask : ", cidrmask)
-			//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
-			r, _ := domain.NewRegion(R, startIP, cidrmask)
+			//				netaddr, mask := query.DefaultNetaddr, query.DefaultMask
+			r, _ := query.NewRegion(R, startIP, cidrmask)
 			regionTree.AddRegionToCache(r)
 			//fmt.Println(utils.GetDebugLine(), "GetAFromMySQLBackend: ", r)
 			//				fmt.Println(regionTree.GetRegionFromCacheWithAddr(startIP, cidrmask))
@@ -334,7 +333,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *domain.RegionTree) (boo
 func GetAFromDNSBackend(
 	dst, srcIP string,
 	ns_a []string,
-	regionTree *domain.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
+	regionTree *query.RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
 
 	var reE *MyError.MyError = nil
 	var rtype uint16
@@ -372,7 +371,7 @@ func GetAFromDNSBackend(
 		}
 
 		//Add timer for auto refrech the RegionCache
-		go func(dst, srcIP string, ns_a []string, r dns.RR, regionTree *domain.RegionTree) {
+		go func(dst, srcIP string, ns_a []string, r dns.RR, regionTree *query.RegionTree) {
 			//fmt.Println(utils.GetDebugLine(), " Refresh record after ", r.Header().Ttl-5,
 			//	" Second, dst: ", dst, " srcIP: ", srcIP, " ns_a: ", ns_a, "add timer ")
 			time.AfterFunc((time.Duration(r.Header().Ttl-5))*time.Second,
@@ -383,7 +382,7 @@ func GetAFromDNSBackend(
 		//fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: ", " edns_h: ", edns_h, " edns: ", edns)
 		utils.ServerLogger.Debug("GetAFromDNSBackend: ", " edns_h: ", edns_h, " edns: ", edns)
 
-		go func(regionTree *domain.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET, srcIP string) {
+		go func(regionTree *query.RegionTree, R []dns.RR, edns *dns.EDNS0_SUBNET, srcIP string) {
 			//todo: Need to be combined with the go func within GetAFromMySQLBackend
 			var startIP, endIP uint32
 
@@ -422,7 +421,7 @@ func GetAFromDNSBackend(
 					startIP = netaddr
 					cidrmask = mask
 				}
-				r, _ := domain.NewRegion(R, startIP, cidrmask)
+				r, _ := query.NewRegion(R, startIP, cidrmask)
 				//todo: modify to go func,so you can cathe the result
 				regionTree.AddRegionToCache(r)
 				//fmt.Print(utils.GetDebugLine(), "GetAFromDNSBackend: ")
@@ -431,8 +430,8 @@ func GetAFromDNSBackend(
 			} else {
 				//todo: get StartIP/EndIP from iplookup module
 
-				//				netaddr, mask := domain.DefaultNetaddr, domain.DefaultMask
-				r, _ := domain.NewRegion(R, startIP, cidrmask)
+				//				netaddr, mask := query.DefaultNetaddr, query.DefaultMask
+				r, _ := query.NewRegion(R, startIP, cidrmask)
 				//todo: modify to go func,so you can cathe the result
 				regionTree.AddRegionToCache(r)
 				//fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: AddRegionToCache: ", r)

@@ -1,8 +1,7 @@
-package domain
+package query
 
 import (
 	"net"
-	"query"
 	"reflect"
 	//	"server"
 	"testing"
@@ -37,7 +36,7 @@ func TestQueryDomainSOAandNS(t *testing.T) {
 	}
 	for _, k := range ds_array {
 		t.Log(k)
-		soa, ns, e := query.QuerySOA(k)
+		soa, ns, e := QuerySOA(k)
 		if e != nil {
 			t.Log(e)
 			t.Log(soa)
@@ -72,39 +71,39 @@ func TestQueryDomainSOAandNS(t *testing.T) {
 	}
 }
 
-func TestNewRegion(t *testing.T) {
-	d_arr := []string{
-		//		"www.baidu.com",
-		"www.a.shifen.com",
-		"api.weibo.cn",
-		"ww2.sinaimg.cn",
-		"weibo.cn",
-		"www.qq.com",
-		"www.yahoo.com",
-		//		"www.google.com",
-	}
-	for _, d := range d_arr {
-
-		a_rr, ipnet, e := GeneralDNSBackendQuery(d, "202.106.0.20")
-		t.Log(a_rr, ipnet, e)
-		ip, mask := utils.IpNetToInt32(ipnet)
-		if a_rr == nil {
-			t.Log("a_rr is Nil ", a_rr)
-			continue
-		}
-		r1, e := NewRegion(a_rr, ip, mask)
-		if e != nil {
-			t.Log(e)
-			t.Fail()
-		} else {
-			t.Log(r1)
-			t.Log(r1.UpdateTime.UnixNano())
-
-		}
-		t.Log("--------------------------")
-
-	}
-}
+//func TestNewRegion(t *testing.T) {
+//	d_arr := []string{
+//		//		"www.baidu.com",
+//		"www.a.shifen.com",
+//		"api.weibo.cn",
+//		"ww2.sinaimg.cn",
+//		"weibo.cn",
+//		"www.qq.com",
+//		"www.yahoo.com",
+//		//		"www.google.com",
+//	}
+//	for _, d := range d_arr {
+//
+//		a_rr, ipnet, e := GeneralDNSBackendQuery(d, "202.106.0.20")
+//		t.Log(a_rr, ipnet, e)
+//		ip, mask := utils.IpNetToInt32(ipnet)
+//		if a_rr == nil {
+//			t.Log("a_rr is Nil ", a_rr)
+//			continue
+//		}
+//		r1, e := NewRegion(a_rr, ip, mask)
+//		if e != nil {
+//			t.Log(e)
+//			t.Fail()
+//		} else {
+//			t.Log(r1)
+//			t.Log(r1.UpdateTime.UnixNano())
+//
+//		}
+//		t.Log("--------------------------")
+//
+//	}
+//}
 
 func TestInitRegionTree(t *testing.T) {
 	d_arr := []string{
@@ -118,7 +117,7 @@ func TestInitRegionTree(t *testing.T) {
 		"www.google.com",
 	}
 	for _, d := range d_arr {
-		soa, ns, e := query.QuerySOA(d)
+		soa, ns, e := QuerySOA(d)
 
 		if e != nil {
 			t.Log(e)
@@ -182,7 +181,7 @@ func TestA(t *testing.T) {
 
 		} else {
 			// QuerySOA
-			soa, ns, e = query.QuerySOA(d)
+			soa, ns, e = QuerySOA(d)
 			if e == nil {
 				//store soa & ns into SOADB
 				DomainSOACache.StoreDomainSOANodeToCache(&DomainSOANode{
@@ -201,7 +200,7 @@ func TestA(t *testing.T) {
 			for _, n := range ns {
 				ns_a = append(ns_a, n.Ns)
 			}
-			rr, i, edns, e := query.QueryA(d, "202.106.0.20", ns_a, "53")
+			rr, i, edns, e := QueryA(d, "202.106.0.20", ns_a, "53")
 			if e != nil {
 				t.Log(e)
 			} else {
@@ -225,7 +224,7 @@ func TestA(t *testing.T) {
 						case dns.TypeCNAME:
 							//Query CNAME's Target
 							if rc, ok := r.(*dns.CNAME); ok {
-								rc_soa, ns, e := query.QuerySOA(rc.Target)
+								rc_soa, ns, e := QuerySOA(rc.Target)
 								t.Log(rc_soa)
 								t.Log(ns)
 								if e == nil && ns != nil {
@@ -233,7 +232,7 @@ func TestA(t *testing.T) {
 									for _, n := range ns {
 										ns_a = append(ns_a, n.Ns)
 									}
-									rr, i, edns, e := query.QueryA(rc.Target, "202.106.0.20", ns_a, "53")
+									rr, i, edns, e := QueryA(rc.Target, "202.106.0.20", ns_a, "53")
 									t.Log(rr)
 									t.Log(i)
 									t.Log(edns)

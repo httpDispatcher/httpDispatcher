@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"utils"
 
-	"domain"
 	"strconv"
 
 	"config"
@@ -26,13 +25,13 @@ type RR_MySQL struct {
 
 type MySQLRegion struct {
 	IdRegion uint32
-	Region   *domain.RegionNew
+	Region   *RegionNew
 }
 
 type MySQLRR struct {
 	idRR []uint32
 	//	Domain  *domain.Domain
-	RR *domain.RRNew
+	RR *RRNew
 }
 
 var RRMySQL *RR_MySQL
@@ -111,7 +110,7 @@ func (D *RR_MySQL) GetRegionWithIPFromMySQL(ip uint32) (*MySQLRegion, *MyError.M
 			NetAddr, " NetMask: ", NetMask, " srcIP: ", utils.Int32ToIP4(ip).String())
 		return &MySQLRegion{
 			IdRegion: idRegion,
-			Region: &domain.RegionNew{
+			Region: &RegionNew{
 				StarIP:  StartIP,
 				EndIP:   EndIP,
 				NetAddr: NetAddr,
@@ -170,7 +169,7 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError
 			} else {
 				MyRR = &MySQLRR{
 					idRR: uu,
-					RR: &domain.RRNew{
+					RR: &RRNew{
 						RrType: w,
 						Class:  x,
 						Target: zz,
