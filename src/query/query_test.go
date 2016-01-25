@@ -1,5 +1,6 @@
 package query
 
+//go test -v query -run=none -benchmem -benchtime 10s -count 4 -cpuprofile querybench.cpu.out -memprofile querybench.mem.out -bench "."
 import (
 	"MyError"
 	"config"
@@ -420,15 +421,15 @@ func BenchmarkQuerySOA(b *testing.B) {
 		"alicdn.com":                         "yyyy",
 		"img.alicdn.com.danuoyi.alicdn.com.": "danuoyinewns1.gds.alicdn.com.",
 		"danuoyi.alicdn.com.":                "xxxxx",
-		"fjdsljflsj.jfslj":                   "...",
+		//		"fjdsljflsj.jfslj":                   "...",
 	}
 	for i := 0; i < b.N; i++ {
 		for k, _ := range dsmap {
-			b.Log("----------------------------------")
-			b.Log(k)
-			soa, ns_a, e := QuerySOA(k)
+			//			b.Log("----------------------------------")
+			//			b.Log(k)
+			_, _, e := QuerySOA(k)
 			if e == nil {
-				b.Log(soa, ns_a)
+				//				b.Log(soa, ns_a)
 				//				t.Log(soa.Hdr.Name)
 				//				t.Log(soa.Hdr.Rrtype)
 				//				t.Log(soa.Hdr.Class)

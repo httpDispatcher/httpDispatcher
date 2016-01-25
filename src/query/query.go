@@ -2,6 +2,7 @@ package query
 
 import (
 	"MyError"
+	"sync"
 	//"fmt"
 	"net"
 	"strings"
@@ -41,6 +42,22 @@ func NewQuery(t uint16, ns string, edns0Subnet bool) *Query {
 	}
 }
 
+var ClientPool = &sync.Pool{
+	New: func() interface{} {
+		return &dns.Client{
+			DialTimeout:  3 * time.Second,
+			WriteTimeout: 3 * time.Second,
+			ReadTimeout:  9 * time.Second,
+		}
+	},
+}
+
+var DnsMsgPool = &sync.Pool{
+	New: func() interface{} {
+		return &dns.Msg{}
+	},
+}
+
 func Check_DomainName(d string) (int, bool) {
 	return dns.IsDomainName(d)
 }
@@ -59,14 +76,19 @@ func DoQuery(
 	//	fmt.Println(domainResolverIP + "......" + domainResolverPort + "  .......")
 	//	fmt.Println("++++++++end ds dp+++++++++")
 	//todo:make those timeout as config.param in configuration file
-	c := &dns.Client{
-		DialTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		ReadTimeout:  9 * time.Second,
-		Net:          t,
-	}
+	//	c := &dns.Client{
+	//		DialTimeout:  3 * time.Second,
+	//		WriteTimeout: 3 * time.Second,
+	//		ReadTimeout:  9 * time.Second,
+	//		Net:          t,
+	//	}
+	c := ClientPool.Get().(*dns.Client)
+	defer ClientPool.Put(c)
+	c.Net = t
 
-	m := &dns.Msg{}
+	//	m := &dns.Msg{}
+	m := DnsMsgPool.Get().(*dns.Msg)
+	defer DnsMsgPool.Put(m)
 	m.AuthenticatedData = true
 	m.RecursionDesired = true
 	//	m.Truncated= false
