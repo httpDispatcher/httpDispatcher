@@ -337,10 +337,6 @@ func preQuery(d, srcIP string) (*dns.OPT, *MyError.MyError) {
 	if _, ok := dns.IsDomainName(d); !ok {
 		//		return "", "", nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name!")
 	}
-	//	ds, dp, e := GetDomainResolver(d)
-	//	if e != nil {
-	//		return "", "", nil, e
-	//	}
 
 	var o *dns.OPT
 	if len(srcIP) > 0 {
@@ -450,38 +446,6 @@ func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 	return o
 }
 
-// func UnpackEdns0Subnet() Unpack Edns0Subnet OPT to []*dns.EDNS0_SUBNET
-// if is not dns.EDNS0_SUBNET type ,return nil .
-//
-///*
-//	fmt.Println("-------isEdns0--------")
-//	if x := r.IsEdns0(); x != nil {
-//		re := UnpackEdns0Subnet(x)
-//		fmt.Println(x.Hdr.Name)
-//		fmt.Println(x.Hdr.Class)
-//		fmt.Println(x.Hdr.Rdlength)
-//		fmt.Println(x.Hdr.Rrtype)
-//		fmt.Println(x.Hdr.Ttl)
-//		//		fmt.Println(x.Hdr.Header())
-//		//		fmt.Println(x.Hdr.String())
-//		fmt.Println("xxxxxxxxxx")
-//		for _, v := range re {
-//			fmt.Println(v.Address)
-//			fmt.Println(v.SourceNetmask)
-//			fmt.Println(v.SourceScope)
-//			fmt.Println(v.Code)
-//			fmt.Println(v.Family)
-//			if on := v.Option(); on == dns.EDNS0SUBNET || on == dns.EDNS0SUBNETDRAFT {
-//				fmt.Println("sure of ends0subnet")
-//			} else {
-//				fmt.Println("not sure")
-//			}
-//		}
-//		fmt.Println(x.Version())
-//	} else {
-//		fmt.Println("no edns0")
-//	}
-// */
 //TODO: edns_h and edns (*dns.EDNS0_SUBNET) can be combined into a struct
 func UnpackEdns0Subnet(opt *dns.OPT) (*dns.RR_Header, *dns.EDNS0_SUBNET) {
 	var re *dns.EDNS0_SUBNET = nil
@@ -561,8 +525,6 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close c
 		for l := 0; l < 3; l++ {
 			m, _, ee := c.Exchange(m, ds+":"+dp)
 			if (ee != nil) || (m == nil) || (m.Answer == nil) {
-				//		fmt.Println("errrororororororororo:")
-				//fmt.Println(utils.GetDebugLine(), " retry: ", strconv.Itoa(l), " times : ", ee.Error())
 				utils.ServerLogger.Error(" doQuery: retry: %s times error: %s", strconv.Itoa(l), ee.Error())
 				if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
 					if strings.Contains(ee.Error(), "connection refused") {
@@ -570,7 +532,6 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close c
 							c.Net = UDP
 						}
 					} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
-						//fmt.Println(utils.GetDebugLine(), "Response Truncated : ", r)
 						utils.ServerLogger.Error(" doQuery: response truncated: %v", m)
 						//					m.SetEdns0(4096,false)
 						//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)

@@ -460,3 +460,23 @@ func BenchmarkQueryA(b *testing.B) {
 	}
 	b.ReportAllocs()
 }
+
+func BenchmarkParseA(b *testing.B) {
+	a, _, _, e := QueryA("www.a.shifen.com",
+		"202.106.0.20",
+		[]string{"ns1.a.shifen.com.",
+			"ns2.a.shifen.com.",
+			"ns3.a.shifen.com.",
+			"ns4.a.shifen.com.",
+			"ns5.a.shifen.com."}, "53")
+	b.ResetTimer()
+	if e != nil {
+		b.Fatal(e)
+	}
+	for n := 0; n < b.N; n++ {
+		_, ok := ParseA(a, "www.a.shifen.com")
+		if !ok {
+			b.Fatal("Parse error")
+		}
+	}
+}
