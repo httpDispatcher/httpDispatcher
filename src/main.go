@@ -2,13 +2,13 @@ package main
 
 import (
 	"runtime"
+
+	"config"
+	"query"
 	"server"
 	"utils"
 
-	"config"
-
 	"github.com/pkg/profile"
-	"query"
 )
 
 // param: lower case + Upper Case ,No _ spliter
