@@ -14,8 +14,8 @@ import (
 	"github.com/petar/GoLLRB/llrb"
 )
 
-const DefaultNetaddr = uint32(1)
-const DefaultNetMask = 1
+const DefaultNetaddr = uint32(0)
+const DefaultNetMask = 0
 const DefaultRedaxSearchMask = 32
 
 type MuLLRB struct {
@@ -103,7 +103,8 @@ var DomainSOACache *DomainSOATree
 //Second: if there is no DomainNode in DomainRRCache, you should get DomainSOANode in
 // DomainSOACache and get NS with DomainSOANode.NS. Notice that ,DomainSOANode.NS is
 // a slice of *dns.NS.
-//Third: Use query.QueryA with the one name server in DomainSOANode.NS.
+//Third: Use query
+// .QueryA with the one name server in DomainSOANode.NS.
 //Notice: you should store all the infoformation when it is not in the trees(
 // Both DomainSOACache and DomainRRCache )
 
@@ -143,7 +144,7 @@ func (a *DomainNode) Less(b llrb.Item) bool {
 	} else if y, ok := b.(*Domain); ok {
 		return a.DomainName < y.DomainName
 	}
-	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b: "+reflect.ValueOf(b).String()))
+	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b "))
 }
 
 func (a *Domain) Less(b llrb.Item) bool {
@@ -152,7 +153,7 @@ func (a *Domain) Less(b llrb.Item) bool {
 	} else if y, ok := b.(*Domain); ok {
 		return a.DomainName < y.DomainName
 	}
-	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b: "+reflect.ValueOf(b).String()))
+	panic(MyError.NewError(MyError.ERROR_PARAM, "Param error of b "))
 }
 
 // 1,Trust d.DomainName is really a DomainName, so, have not use dns.IsDomainName for checking
