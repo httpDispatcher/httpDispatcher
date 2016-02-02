@@ -10,6 +10,7 @@ import (
 )
 
 var ConfigFile string
+var EnableProfile bool
 var RC *RuntimeConfiguration
 
 type MySQLConf struct {
@@ -67,7 +68,8 @@ func IsLocalMysqlBackend(d string) bool {
 }
 
 func ParseCommandline() {
-	flag.StringVar(&ConfigFile, "conf", "", "The configuration file of TOML format")
+	flag.StringVar(&ConfigFile, "conf", "", "The path of configuration file in TOML format")
+	flag.BoolVar(&EnableProfile, "prof", true, "Whether enable profiling or not")
 	flag.Parse()
 	if ConfigFile == "" {
 		fmt.Println("ERROR: You must set the configuration file via -conf flag ")

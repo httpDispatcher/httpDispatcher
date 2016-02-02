@@ -17,9 +17,12 @@ import (
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
-	defer profile.Start(profile.CPUProfile).Stop()
-
 	config.InitConfig()
+
+	if config.EnableProfile {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
+
 	utils.InitLogger()
 	if config.RC.MySQLEnabled {
 		query.RC_MySQLConf = config.RC.MySQLConf
