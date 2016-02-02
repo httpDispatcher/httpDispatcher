@@ -14,8 +14,8 @@ import (
 	"github.com/petar/GoLLRB/llrb"
 )
 
-const DefaultNetaddr = uint32(0)
-const DefaultNetMask = 0
+const DefaultNetaddr = uint32(1 << 31)
+const DefaultNetMask = 1
 const DefaultRedaxSearchMask = 32
 
 type MuLLRB struct {
