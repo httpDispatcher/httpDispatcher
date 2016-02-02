@@ -19,13 +19,13 @@ const DefaultNetMask = 1
 const DefaultRedaxSearchMask = 32
 
 type MuLLRB struct {
-	LLRB  *llrb.LLRB
-	Mutex *sync.Mutex
+	LLRB    *llrb.LLRB
+	RWMutex *sync.RWMutex
 }
 
 type MubitRadix struct {
 	Radix32 *bitradix.Radix32
-	Mutex   *sync.Mutex
+	RWMutex *sync.RWMutex
 }
 
 //For domain name and Region RR
@@ -127,12 +127,12 @@ func init() {
 func InitCache() *MyError.MyError {
 	once.Do(func() {
 		DomainRRCache = &DomainRRTree{
-			LLRB:  llrb.New(),
-			Mutex: &sync.Mutex{},
+			LLRB:    llrb.New(),
+			RWMutex: &sync.RWMutex{},
 		}
 		DomainSOACache = &DomainSOATree{
-			LLRB:  llrb.New(),
-			Mutex: &sync.Mutex{},
+			LLRB:    llrb.New(),
+			RWMutex: &sync.RWMutex{},
 		}
 	})
 	return nil
@@ -169,8 +169,8 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), " StoreDomainNodeToCache return error: ", err)
 		utils.ServerLogger.Error("StoreDomainNodeToCache return :  %s", err.Error())
-		DT.Mutex.Lock()
-		defer DT.Mutex.Unlock()
+		DT.RWMutex.Lock()
+		defer DT.RWMutex.Unlock()
 		DT.LLRB.ReplaceOrInsert(d)
 		//fmt.Println(utils.GetDebugLine(), " Store "+d.DomainName+" into DomainRRCache Done!")
 		utils.ServerLogger.Debug(" Store %s into DomainRRCache Done", d.DomainName)
@@ -190,7 +190,9 @@ func (DT *DomainRRTree) GetDomainNodeFromCacheWithName(d string) (*DomainNode, *
 }
 
 func (DT *DomainRRTree) GetDomainNodeFromCache(d *Domain) (*DomainNode, *MyError.MyError) {
+	DT.RWMutex.RLock()
 	dr := DT.LLRB.Get(d)
+	DT.RWMutex.RUnlock()
 	if dr != nil {
 		if drr, ok := dr.(*DomainNode); ok {
 			return drr, nil
@@ -207,9 +209,9 @@ func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError)
 	if _, ok := dns.IsDomainName(d.DomainName); ok {
 		if dt, err := DT.GetDomainNodeFromCache(&d.Domain); dt != nil && err == nil {
 			d.DomainRegionTree = dt.DomainRegionTree
-			DT.Mutex.Lock()
+			DT.RWMutex.Lock()
 			r := DT.LLRB.ReplaceOrInsert(d)
-			DT.Mutex.Unlock()
+			DT.RWMutex.Unlock()
 			if r != nil {
 				return true, nil
 
@@ -229,9 +231,9 @@ func (DT *DomainRRTree) UpdateDomainNode(d *DomainNode) (bool, *MyError.MyError)
 //Use interface{} as param ,  may refact other func as this
 //TODO: this func has not been completed,don't use it
 func (DT *DomainRRTree) DelDomainNode(d *Domain) (bool, *MyError.MyError) {
-	DT.Mutex.Lock()
+	DT.RWMutex.Lock()
 	r := DT.LLRB.Delete(d)
-	DT.Mutex.Unlock()
+	DT.RWMutex.Unlock()
 	//fmt.Println(utils.GetDebugLine(), "Delete "+d.DomainName+" from DomainRRCache "+reflect.ValueOf(r).String())
 	utils.ServerLogger.Debug("Delete %s from DomainRRCache %s ", d.DomainName, reflect.ValueOf(r).String())
 	return true, nil
@@ -263,9 +265,9 @@ func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *M
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
 		utils.ServerLogger.Error("StoreDomainSOANodeToCache:  %s", err.Error())
-		ST.Mutex.Lock()
+		ST.RWMutex.Lock()
 		ST.LLRB.ReplaceOrInsert(dsn)
-		ST.Mutex.Unlock()
+		ST.RWMutex.Unlock()
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache : Store "+dsn.SOAKey+" into DomainSOACache Done!")
 		utils.ServerLogger.Debug("StoreDomainSOANodeToCache : Store %s into DomainSOACache Done", dsn.SOAKey)
 		return true, nil
@@ -274,6 +276,8 @@ func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *M
 }
 
 func (ST *DomainSOATree) GetDomainSOANodeFromCache(dsn *DomainSOANode) (*DomainSOANode, *MyError.MyError) {
+	ST.RWMutex.RLock()
+	defer ST.RWMutex.RUnlock()
 	if dt := ST.LLRB.Get(dsn); dt != nil {
 		if dsn_r, ok := dt.(*DomainSOANode); ok {
 			return dsn_r, nil
@@ -301,9 +305,9 @@ func (ST *DomainSOATree) GetDomainSOANodeFromCacheWithDomainName(d string) (*Dom
 
 //todo:have not completed
 func (ST *DomainSOATree) DelDomainSOANode(ds *DomainSOANode) *MyError.MyError {
-	ST.Mutex.Lock()
+	ST.RWMutex.Lock()
 	ST.LLRB.Delete(ds)
-	ST.Mutex.Unlock()
+	ST.RWMutex.Unlock()
 	return nil
 }
 
@@ -318,7 +322,7 @@ func initDomainRegionTree() *RegionTree {
 	//	tbitRadix := bitradix.New32()
 	return &RegionTree{
 		Radix32: bitradix.New32(),
-		Mutex:   &sync.Mutex{},
+		RWMutex: &sync.RWMutex{},
 	}
 }
 
@@ -327,6 +331,8 @@ func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) 
 }
 
 func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region, *MyError.MyError) {
+	RT.RWMutex.RLock()
+	defer RT.RWMutex.RUnlock()
 	if r := RT.Radix32.Find(addr, mask); r != nil && r.Value != nil {
 		//fmt.Println(utils.GetDebugLine(), "GetRegionFromCacheWithAddr : ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
 		utils.ServerLogger.Debug("GetRegionFromCacheWithAddr: ", r, addr, reflect.TypeOf(addr), mask, reflect.TypeOf(mask))
@@ -354,8 +360,8 @@ func (RT *RegionTree) AddRegionToCache(r *Region) bool {
 	if ok := CheckRegionFromCache(r); !ok {
 		//Todo: add split region logic
 	}
-	RT.Mutex.Lock()
-	defer RT.Mutex.Unlock()
+	RT.RWMutex.Lock()
+	defer RT.RWMutex.Unlock()
 	RT.Radix32.Insert(r.NetworkAddr, r.NetworkMask, r)
 	//fmt.Println(utils.GetDebugLine(), "AddRegionToCache : ",
 	//	" NetworkAddr: ", r.NetworkAddr, " NetworkMask: ", r.NetworkMask, " RR: ", r.RR)
@@ -364,8 +370,8 @@ func (RT *RegionTree) AddRegionToCache(r *Region) bool {
 
 func (RT *RegionTree) UpdateRegionToCache(r *Region) bool {
 	if rnode, e := RT.GetRegionFromCache(r); e == nil && rnode != nil {
-		RT.Mutex.Lock()
-		defer RT.Mutex.Unlock()
+		RT.RWMutex.Lock()
+		defer RT.RWMutex.Unlock()
 		RT.Radix32.Remove(r.NetworkAddr, r.NetworkMask)
 		RT.Radix32.Insert(r.NetworkAddr, r.NetworkMask, r)
 	} else {
@@ -376,9 +382,9 @@ func (RT *RegionTree) UpdateRegionToCache(r *Region) bool {
 
 func (RT *RegionTree) DelRegionFromCache(r *Region) (bool, *MyError.MyError) {
 	if rnode, e := RT.GetRegionFromCache(r); rnode != nil && e == nil {
-		RT.Mutex.Lock()
+		RT.RWMutex.Lock()
 		RT.Radix32.Remove(r.NetworkAddr, r.NetworkMask)
-		RT.Mutex.Unlock()
+		RT.RWMutex.Unlock()
 		//fmt.Println(utils.GetDebugLine(), "Remove Region from RegionCache "+string(r.NetworkAddr)+":"+string(r.NetworkMask))
 		utils.ServerLogger.Debug("Remove Region from RegionCache %s : %s", string(r.NetworkAddr), string(r.NetworkMask))
 		return true, nil
