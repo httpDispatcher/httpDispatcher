@@ -55,7 +55,12 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
+func HttpHelloWorldServe(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "hello, world!")
+	return
+}
+
+func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_domain := r.URL.Query().Get("d")
 	srcIP := r.URL.Query().Get("ip")
@@ -109,8 +114,9 @@ func HttpQueryServe(w http.ResponseWriter, r *http.Request) {
 
 func NewServer() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/q", HttpQueryServe)
+	mux.HandleFunc("/q", HttpDispacherQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)
+	mux.HandleFunc("/hello", HttpHelloWorldServe)
 	server := &http.Server{
 		ReadTimeout:  3 * time.Second,
 		WriteTimeout: 3 * time.Second,
