@@ -100,12 +100,12 @@ func DoQuery(
 	var x = make(chan *dns.Msg)
 	var closesig = make(chan struct{})
 	for _, ds := range domainResolverIP {
-		go func(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, closesig chan struct{}) {
+		go func(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, closesig chan struct{}) {
 			select {
-			case x <- doQuery(c, m, ds, domainResolverPort, queryType, closesig):
+			case x <- doQuery(&c, &m, ds, domainResolverPort, queryType, closesig):
 			default:
 			}
-		}(c, m, ds, domainResolverPort, queryType, closesig)
+		}(*c, *m, ds, domainResolverPort, queryType, closesig)
 	}
 
 	if r := <-x; r != nil {
