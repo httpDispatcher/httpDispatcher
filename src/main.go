@@ -16,13 +16,13 @@ import (
 // Func: golang style
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
 	config.InitConfig()
 
 	if config.EnableProfile {
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
 
+	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
 	utils.InitLogger()
 	if config.RC.MySQLEnabled {
 		query.RC_MySQLConf = config.RC.MySQLConf
