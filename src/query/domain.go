@@ -191,8 +191,8 @@ func (DT *DomainRRTree) GetDomainNodeFromCacheWithName(d string) (*DomainNode, *
 
 func (DT *DomainRRTree) GetDomainNodeFromCache(d *Domain) (*DomainNode, *MyError.MyError) {
 	DT.RWMutex.RLock()
+	defer DT.RWMutex.RUnlock()
 	dr := DT.LLRB.Get(d)
-	DT.RWMutex.RUnlock()
 	if dr != nil {
 		if drr, ok := dr.(*DomainNode); ok {
 			return drr, nil

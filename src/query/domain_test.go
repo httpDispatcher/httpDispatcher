@@ -7,6 +7,7 @@ import (
 	"testing"
 	"utils"
 
+	"github.com/miekg/bitradix"
 	"github.com/miekg/dns"
 )
 
@@ -70,40 +71,6 @@ func TestQueryDomainSOAandNS(t *testing.T) {
 
 	}
 }
-
-//func TestNewRegion(t *testing.T) {
-//	d_arr := []string{
-//		//		"www.baidu.com",
-//		"www.a.shifen.com",
-//		"api.weibo.cn",
-//		"ww2.sinaimg.cn",
-//		"weibo.cn",
-//		"www.qq.com",
-//		"www.yahoo.com",
-//		//		"www.google.com",
-//	}
-//	for _, d := range d_arr {
-//
-//		a_rr, ipnet, e := GeneralDNSBackendQuery(d, "202.106.0.20")
-//		t.Log(a_rr, ipnet, e)
-//		ip, mask := utils.IpNetToInt32(ipnet)
-//		if a_rr == nil {
-//			t.Log("a_rr is Nil ", a_rr)
-//			continue
-//		}
-//		r1, e := NewRegion(a_rr, ip, mask)
-//		if e != nil {
-//			t.Log(e)
-//			t.Fail()
-//		} else {
-//			t.Log(r1)
-//			t.Log(r1.UpdateTime.UnixNano())
-//
-//		}
-//		t.Log("--------------------------")
-//
-//	}
-//}
 
 func TestInitRegionTree(t *testing.T) {
 	d_arr := []string{
@@ -252,4 +219,90 @@ func TestA(t *testing.T) {
 			t.Fatal()
 		}
 	}
+}
+
+func TestStoreDomainNodeToCache(t *testing.T) {
+
+}
+
+func TestMubitRadix(t *testing.T) {
+	cidrNet := []string{
+		"10.0.0.2/8",
+		"10.20.0.0/14",
+		"10.21.0.0/16",
+		"192.168.0.0/16",
+		"192.168.2.0/24",
+		"8.0.0.0/9",
+		"8.8.8.0/24",
+		"0.0.0.0/0",
+		//		"128.0.0.0/1",
+	}
+	ip2Find := []string{
+		"10.20.1.2",
+		"10.22.1.2",
+		"10.19.0.1",
+		"10.21.0.1",
+		"192.168.2.3",
+		"10.22.0.5",
+		"202.106.0.20",
+		"172.16.3.133",
+		"8.8.8.8",
+		"8.8.7.1",
+	}
+	RadixTree := initDomainRegionTree()
+	for _, x := range cidrNet {
+		i, n, e := net.ParseCIDR(x)
+		if e != nil {
+			t.Log(e.Error())
+			t.Fail()
+			continue
+		}
+		a, m := utils.IpNetToInt32(n)
+		RadixTree.AddRegionToCache(&Region{
+			NetworkAddr: a,
+			NetworkMask: m,
+			RR: []dns.RR{
+				dns.RR(&dns.A{
+					A: i,
+					Hdr: dns.RR_Header{
+						Rrtype: 1,
+						Class:  1,
+						Ttl:    60,
+					},
+				}),
+			},
+		})
+	}
+	// For default route
+	RadixTree.AddRegionToCache(&Region{
+		NetworkAddr: DefaultNetaddr,
+		NetworkMask: DefaultNetMask,
+		RR: []dns.RR{
+			dns.RR(&dns.A{
+				A: utils.Int32ToIP4(DefaultNetaddr),
+				Hdr: dns.RR_Header{
+					Rrtype: 1,
+					Class:  1,
+					Ttl:    60,
+				},
+			}),
+		},
+	})
+	for _, i := range ip2Find {
+
+		ii := utils.Ip4ToInt32(utils.StrToIP(i))
+		r, e := RadixTree.GetRegionFromCacheWithAddr(ii, DefaultRedaxSearchMask)
+		if e != nil {
+			t.Log(e)
+			t.Log(i)
+			t.Fail()
+		} else {
+			t.Log(r)
+		}
+
+	}
+
+	RadixTree.Radix32.Do(func(r1 *bitradix.Radix32, i int) {
+		t.Log(r1.Key(), r1.Value, r1.Bits())
+	})
 }
