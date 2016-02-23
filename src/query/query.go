@@ -100,12 +100,12 @@ func DoQuery(
 	var x = make(chan *dns.Msg)
 	var closesig = make(chan struct{})
 	for _, ds := range domainResolverIP {
-		go func(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, closesig chan struct{}) {
+		go func(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, closesig chan struct{}) {
 			select {
-			case x <- doQuery(&c, &m, ds, domainResolverPort, queryType, closesig):
+			case x <- doQuery(*c, *m, ds, domainResolverPort, queryType, closesig):
 			default:
 			}
-		}(*c, *m, ds, domainResolverPort, queryType, closesig)
+		}(c, m, ds, domainResolverPort, queryType, closesig)
 	}
 
 	if r := <-x; r != nil {
@@ -512,7 +512,7 @@ func GetDomainConfigFromDomainTree(domain string) (string, string, *MyError.MyEr
 	return ds, dp, nil
 }
 
-func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close chan struct{}) *dns.Msg {
+func doQuery(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, close chan struct{}) *dns.Msg {
 	//	r := &dns.Msg{}
 	//	var ee error
 	//fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
@@ -523,8 +523,8 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close c
 		return nil
 	default:
 		for l := 0; l < 3; l++ {
-			m, _, ee := c.Exchange(m, ds+":"+dp)
-			if (ee != nil) || (m == nil) || (m.Answer == nil) {
+			r, _, ee := c.Exchange(&m, ds+":"+dp)
+			if (ee != nil) || (r == nil) || (r.Answer == nil) {
 				utils.ServerLogger.Error(" doQuery: retry: %s times error: %s", strconv.Itoa(l), ee.Error())
 				if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
 					if strings.Contains(ee.Error(), "connection refused") {
@@ -532,7 +532,7 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close c
 							c.Net = UDP
 						}
 					} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
-						utils.ServerLogger.Error(" doQuery: response truncated: %v", m)
+						utils.ServerLogger.Error(" doQuery: response truncated: %v", r)
 						//					m.SetEdns0(4096,false)
 						//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
 						c.Net = TCP
@@ -545,7 +545,7 @@ func doQuery(c *dns.Client, m *dns.Msg, ds, dp string, queryType uint16, close c
 					}
 				}
 			} else {
-				return m
+				return r
 			}
 		}
 	}
