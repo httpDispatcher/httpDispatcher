@@ -15,6 +15,8 @@ import (
 	"github.com/miekg/dns"
 )
 
+const CNAME_CHAIN_LENGTH = 10
+
 func GetSOARecord(d string) (*query.DomainSOANode, *MyError.MyError) {
 
 	var soa *query.DomainSOANode
@@ -58,7 +60,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	//fmt.Println(utils.GetDebugLine(), "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
 	//Can't loop for CNAME chain than bigger than 10
-	for dst := d; (bigloopflag == false) && (c < 10); c++ {
+	for dst := d; (bigloopflag == false) && (c < CNAME_CHAIN_LENGTH); c++ {
 		//fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst, " srcIP: ", srcIP)
 		utils.ServerLogger.Debug("GetARecord : %s srcIP: %s", dst, srcIP)
 
@@ -70,8 +72,9 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			return ok, RR, nil
 		} else {
 			if (dn != nil) && (RR != nil) {
-				dst = RR[0].(*dns.CNAME).Target
-				continue
+				if dst, ok = RR[0].(*dns.CNAME).Target; ok {
+					continue
+				}
 			} else if (dn != nil) && (RR == nil) {
 				// hava domain node ,but region node is nil,need queryA
 
@@ -83,11 +86,11 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 
 		soa, e := GetSOARecord(dst)
 		//fmt.Println(utils.GetDebugLine(), "GetARecord: GetSOARecord return : ", soa, " error: ", e)
-		utils.ServerLogger.Debug("GetARecord return: ", soa, " error: ", e)
+		utils.ServerLogger.Debug("GetSOARecord return: ", soa, " error: ", e)
 		if e != nil {
 			// error! need return
 			//fmt.Print(utils.GetDebugLine(), "GetARecord: ")
-			utils.ServerLogger.Error("GetARecord error: %s", e.Error())
+			utils.ServerLogger.Error("GetSOARecord error: %s", e.Error())
 			//fmt.Println(e)
 			//fmt.Println("error111,need return")
 		}
@@ -115,7 +118,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			} else {
 				cacheflag = true
 				//fmt.Println(utils.GetDebugLine(), "GetARecord: ", dn)
-				utils.ServerLogger.Debug("GetARecord dn: %v", dn)
+				utils.ServerLogger.Debug("GetARecord dn: %s", dn.Domain.DomainName)
 			}
 		}
 		if e != nil || len(soa.NS) <= 0 {
