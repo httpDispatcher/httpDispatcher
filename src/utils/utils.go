@@ -14,19 +14,8 @@ import (
 	"github.com/op/go-logging"
 )
 
-//todo: add echeck RC.xx config to see weather query / server log is enabled
-
-//todo: change codes about Log to log module?
 var QueryLogger = logging.MustGetLogger("query")
 var ServerLogger = logging.MustGetLogger("server")
-
-var queryformat = logging.MustStringFormatter(
-	`%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}`,
-)
-
-var serverformat = logging.MustStringFormatter(
-	`%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}`,
-)
 
 func GetDebugLine() string {
 	_, file, line, ok := runtime.Caller(1)
@@ -49,39 +38,51 @@ func CheckIPv4(ip string) {
 }
 
 func InitLogger() {
-	loglevel := map[string]logging.Level{
-		"DEBUG":    logging.DEBUG,
-		"INFO":     logging.INFO,
-		"NOTICE":   logging.NOTICE,
-		"WARNING":  logging.WARNING,
-		"ERROR":    logging.ERROR,
-		"CRITICAL": logging.CRITICAL}
-	qfd, e := os.OpenFile(config.RC.QueryLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	qfd := createLog(config.RC.QueryLog)
+	sfd := createLog(config.RC.ServerLog)
+
+	loglevel, e := logging.LogLevel(config.RC.LogLevel)
 	if e != nil {
-		fmt.Println("Open log file ", config.RC.QueryLog, " error: ", e.Error())
+		fmt.Println("Translate LogLevel fail loglevel: ", config.RC.LogLevel, " error: ", e.Error())
 		os.Exit(1)
 	}
 
-	sfd, e := os.OpenFile(config.RC.ServerLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if e != nil {
-		fmt.Println("Open log file ", config.RC.ServerLog, " error: ", e.Error())
-		os.Exit(1)
-	}
+	querylogformat := getLogFormat(config.RC.QueryLogFormat)
+	serverlogformat := getLogFormat(config.RC.ServerLogFormat)
 
 	backend1 := logging.NewLogBackend(qfd, "", 0)
 	backend2 := logging.NewLogBackend(sfd, "", 0)
 
-	backend1Formatter := logging.NewBackendFormatter(backend1, queryformat)
-	backend2Formatter := logging.NewBackendFormatter(backend2, serverformat)
+	backend1Formatter := logging.NewBackendFormatter(backend1, querylogformat)
+	backend2Formatter := logging.NewBackendFormatter(backend2, serverlogformat)
 
 	backend1Leveled := logging.AddModuleLevel(backend1Formatter)
-	backend1Leveled.SetLevel(loglevel[config.RC.LogLevel], "querylog")
+	backend1Leveled.SetLevel(loglevel, "")
 
 	backend2Leveled := logging.AddModuleLevel(backend2Formatter)
-	backend2Leveled.SetLevel(loglevel[config.RC.LogLevel], "serverlog")
+	backend2Leveled.SetLevel(loglevel, "")
 
 	QueryLogger.SetBackend(backend1Leveled)
 	ServerLogger.SetBackend(backend2Leveled)
+}
+
+func createLog(logname string) *os.File {
+	fd, e := os.OpenFile(logname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if e != nil {
+		fmt.Println("Open log file ", logname, " error: ", e.Error())
+		os.Exit(1)
+	}
+	return fd
+}
+
+func getLogFormat(formatstr string) logging.Formatter {
+	format, e := logging.NewStringFormatter(formatstr)
+	if e != nil {
+		fmt.Println("Getlogformat from format: ", formatstr, " error: ", e.Error())
+		os.Exit(1)
+	}
+
+	return format
 }
 
 //Convert net.IPNet to  startIP & endIP

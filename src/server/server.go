@@ -123,11 +123,11 @@ func NewServer() {
 		Handler:      mux,
 	}
 	listener, err := net.Listen("tcp", config.RC.Bind)
-	defer listener.Close()
 	if nil != err {
 		utils.ServerLogger.Critical("Create listener error: %s", err.Error())
 		os.Exit(1)
 	}
+	defer listener.Close()
 	if err := server.Serve(listener); nil != err {
 		utils.ServerLogger.Critical("Call server error: %s", err.Error())
 		os.Exit(1)
