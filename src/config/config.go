@@ -23,14 +23,16 @@ type MySQLConf struct {
 }
 
 type RuntimeConfiguration struct {
-	Bind         string     `toml:"bind"`
-	Domains      []string   `toml:"domains"`
-	MySQLEnabled bool       `toml:"mysql_enable"`
-	MySQLConf    *MySQLConf `toml:"mysql"`
-	IPDB         string     `toml:"ipdb_path"`
-	ServerLog    string     `toml:"server_log"`
-	QueryLog     string     `toml:"query_log"`
-	LogLevel     string     `toml:"log_level"`
+	Bind            string     `toml:"bind"`
+	Domains         []string   `toml:"domains"`
+	MySQLEnabled    bool       `toml:"mysql_enable"`
+	MySQLConf       *MySQLConf `toml:"mysql"`
+	IPDB            string     `toml:"ipdb_path"`
+	ServerLog       string     `toml:"server_log"`
+	QueryLog        string     `toml:"query_log"`
+	LogLevel        string     `toml:"log_level"`
+	QueryLogFormat  string     `toml:"querylog_format"`
+	ServerLogFormat string     `toml:"serverlog_format"`
 }
 
 func InitConfig() {
@@ -104,6 +106,8 @@ func ParseConf(file string) bool {
 	fmt.Println("\tIPDB Path:       ", RC.IPDB)
 	fmt.Println("\tServerLog:       ", RC.ServerLog)
 	fmt.Println("\tQueryLog:        ", RC.QueryLog)
+	fmt.Println("\tServerLogFormat:        ", RC.ServerLogFormat)
+	fmt.Println("\tQueryLogFormat:       ", RC.QueryLogFormat)
 	fmt.Println("\tLoglevel:        ", RC.LogLevel)
 	if RC.MySQLEnabled {
 		fmt.Println("MySQL Conf: ")
