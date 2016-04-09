@@ -23,7 +23,7 @@ var ttlmap = map[string]uint32{
 }
 
 func TestMain(m *testing.M) {
-	config.ParseConf("/Users/chunsheng/GooleDrive/Work/Sina/08.Projects/16.httpDispacher/conf/httpdispacher.toml")
+	config.ParseConf("/Users/chunsheng/GooleDrive/Work/github/16.httpDispacher/conf/httpdispacher.toml")
 	if config.RC.MySQLEnabled {
 		RC_MySQLConf = config.RC.MySQLConf
 		InitMySQL(RC_MySQLConf)
@@ -134,36 +134,6 @@ func TestQueryNS(t *testing.T) {
 	testQueryNS("sinaimg.cn", t)
 	testQueryNS("sinaedge.com", t)
 	testQueryNS("danuoyi.alicdn.com.", t)
-}
-
-func testLoopforqueryns(d string, t *testing.T) {
-	ns_a, e := LoopForQueryNS(d)
-	t.Log(cap(ns_a))
-	t.Log((e == nil) && (cap(ns_a) > 0))
-	if (e == nil) && (cap(ns_a) > 0) {
-		for _, ns := range ns_a {
-			t.Log(reflect.TypeOf(ns))
-			t.Log(ns.Hdr.Name)
-			t.Log(ns.Hdr.Rrtype)
-			t.Log(ns.Hdr.Class)
-			t.Log(ns.Hdr.Rdlength)
-			t.Log(ns.Hdr.Ttl)
-			t.Log(ns.Ns)
-		}
-	} else {
-		t.Log(ns_a)
-		t.Log(e)
-		t.Fail()
-	}
-}
-
-func TestLoopForQueryNS(t *testing.T) {
-	testLoopforqueryns("weiboimg.gslb.sinaedge.com", t)
-	testLoopforqueryns("ww2.sinaimg.cn", t)
-	testLoopforqueryns("api.weibo.cn", t)
-	//	testLoopforqueryns("weiboimg.",t)
-	testLoopforqueryns("img.alicdn.com.danuoyi.alicdn.com.", t)
-	testLoopforqueryns("www.a.shifen.com", t)
 }
 
 func TestQueryA(t *testing.T) {
@@ -405,78 +375,78 @@ func TestGetRRFromMySQL(t *testing.T) {
 //	}
 //}
 
-func BenchmarkQuerySOA(b *testing.B) {
-	dsmap := map[string]string{
-		"baidu.com":                          "xxxx",
-		"www.yahoo.com":                      "bbb",
-		"yahoo.com":                          "zzzz",
-		"weibo.cn":                           "xxxx",
-		"www.baidu.com":                      "ns2.baidu.com.",
-		"www.a.shifen.com":                   "ns1.a.shifen.com.",
-		"a.shifen.com":                       "ns1.a.shifen.com.",
-		"www2.sinaimg.cn":                    "ns1.sina.com.cn.",
-		"weboimg.gslb.sinaedge.com":          "ns2.sinaedge.com.",
-		"api.weibo.cn":                       "ns1.sina.com.cn.",
-		"img.alicdn.com":                     "ns8.alibabaonline.com.",
-		"alicdn.com":                         "yyyy",
-		"img.alicdn.com.danuoyi.alicdn.com.": "danuoyinewns1.gds.alicdn.com.",
-		"danuoyi.alicdn.com.":                "xxxxx",
-		//		"fjdsljflsj.jfslj":                   "...",
-	}
-	for i := 0; i < b.N; i++ {
-		for k, _ := range dsmap {
-			//			b.Log("----------------------------------")
-			//			b.Log(k)
-			_, _, e := QuerySOA(k)
-			if e == nil {
-				//				b.Log(soa, ns_a)
-				//				t.Log(soa.Hdr.Name)
-				//				t.Log(soa.Hdr.Rrtype)
-				//				t.Log(soa.Hdr.Class)
-				//				t.Log(soa.Ns)
-				//				t.Log(soa.Expire)
-				//				t.Log(soa.Mbox)
-				//				t.Log(soa.Minttl)
-				//				t.Log(soa.Retry)
-			} else {
-				b.Log(e)
-			}
-		}
-	}
-	b.ReportAllocs()
-}
+//func BenchmarkQuerySOA(b *testing.B) {
+//	dsmap := map[string]string{
+//		"baidu.com":                          "xxxx",
+//		"www.yahoo.com":                      "bbb",
+//		"yahoo.com":                          "zzzz",
+//		"weibo.cn":                           "xxxx",
+//		"www.baidu.com":                      "ns2.baidu.com.",
+//		"www.a.shifen.com":                   "ns1.a.shifen.com.",
+//		"a.shifen.com":                       "ns1.a.shifen.com.",
+//		"www2.sinaimg.cn":                    "ns1.sina.com.cn.",
+//		"weboimg.gslb.sinaedge.com":          "ns2.sinaedge.com.",
+//		"api.weibo.cn":                       "ns1.sina.com.cn.",
+//		"img.alicdn.com":                     "ns8.alibabaonline.com.",
+//		"alicdn.com":                         "yyyy",
+//		"img.alicdn.com.danuoyi.alicdn.com.": "danuoyinewns1.gds.alicdn.com.",
+//		"danuoyi.alicdn.com.":                "xxxxx",
+//		//		"fjdsljflsj.jfslj":                   "...",
+//	}
+//	for i := 0; i < b.N; i++ {
+//		for k, _ := range dsmap {
+//			//			b.Log("----------------------------------")
+//			//			b.Log(k)
+//			_, _, e := QuerySOA(k)
+//			if e == nil {
+//				//				b.Log(soa, ns_a)
+//				//				t.Log(soa.Hdr.Name)
+//				//				t.Log(soa.Hdr.Rrtype)
+//				//				t.Log(soa.Hdr.Class)
+//				//				t.Log(soa.Ns)
+//				//				t.Log(soa.Expire)
+//				//				t.Log(soa.Mbox)
+//				//				t.Log(soa.Minttl)
+//				//				t.Log(soa.Retry)
+//			} else {
+//				b.Log(e)
+//			}
+//		}
+//	}
+//	b.ReportAllocs()
+//}
 
-func BenchmarkQueryCNAME(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		QueryCNAME("api.weibo.cn", "202.106.0.20", []string{"114.114.114.114"}, "53")
-	}
-	b.ReportAllocs()
-}
+//func BenchmarkQueryCNAME(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		QueryCNAME("api.weibo.cn", "202.106.0.20", []string{"114.114.114.114"}, "53")
+//	}
+//	b.ReportAllocs()
+//}
 
-func BenchmarkQueryA(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		QueryA("www.baidu.com", "201.106.0.20", []string{"114.114.114.114"}, "53")
-		//		b.Log(a_a, edns_h, edns, e)
-	}
-	b.ReportAllocs()
-}
+//func BenchmarkQueryA(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		QueryA("www.baidu.com", "201.106.0.20", []string{"114.114.114.114"}, "53")
+//		//		b.Log(a_a, edns_h, edns, e)
+//	}
+//	b.ReportAllocs()
+//}
 
-func BenchmarkParseA(b *testing.B) {
-	a, _, _, e := QueryA("www.a.shifen.com",
-		"202.106.0.20",
-		[]string{"ns1.a.shifen.com.",
-			"ns2.a.shifen.com.",
-			"ns3.a.shifen.com.",
-			"ns4.a.shifen.com.",
-			"ns5.a.shifen.com."}, "53")
-	b.ResetTimer()
-	if e != nil {
-		b.Fatal(e)
-	}
-	for n := 0; n < b.N; n++ {
-		_, ok := ParseA(a, "www.a.shifen.com")
-		if !ok {
-			b.Fatal("Parse error")
-		}
-	}
-}
+//func BenchmarkParseA(b *testing.B) {
+//	a, _, _, e := QueryA("www.a.shifen.com",
+//		"202.106.0.20",
+//		[]string{"ns1.a.shifen.com.",
+//			"ns2.a.shifen.com.",
+//			"ns3.a.shifen.com.",
+//			"ns4.a.shifen.com.",
+//			"ns5.a.shifen.com."}, "53")
+//	b.ResetTimer()
+//	if e != nil {
+//		b.Fatal(e)
+//	}
+//	for n := 0; n < b.N; n++ {
+//		_, ok := ParseA(a, "www.a.shifen.com")
+//		if !ok {
+//			b.Fatal("Parse error")
+//		}
+//	}
+//}

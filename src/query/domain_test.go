@@ -3,9 +3,10 @@ package query
 import (
 	"net"
 	"reflect"
-	//	"server"
 	"testing"
 	"utils"
+
+	"MyError"
 
 	"github.com/miekg/bitradix"
 	"github.com/miekg/dns"
@@ -21,20 +22,30 @@ func TestNewDomainDB(t *testing.T) {
 	t.Log(reflect.ValueOf(DomainSOACache))
 }
 
+var ds_array = []string{
+	"www.baidu.com",
+	"www.a.shifen.com",
+	"a.shifen.com",
+	//"www2.sinaimg.cn",
+	//"weboimg.gslb.sinaedge.com",
+	//"weibo.cn",
+	//"ww3.sinaimg.cn",
+	//"api.weibo.cn",
+	"img.alicdn.com",
+	"danuoyi.alicdn.com",
+	"img.alicdn.com.danuoyi.alicdn.com.",
+}
+
+var ip_arr = []string{
+	"202.106.0.20",
+	"112.112.112.112",
+	"11.12.13.14",
+	"210.35.249.1",
+	"198.6.3.5",
+	"124.207.129.171",
+}
+
 func TestQueryDomainSOAandNS(t *testing.T) {
-	ds_array := []string{
-		"www.baidu.com",
-		"www.a.shifen.com",
-		"a.shifen.com",
-		"www2.sinaimg.cn",
-		"weboimg.gslb.sinaedge.com",
-		"weibo.cn",
-		"ww3.sinaimg.cn",
-		"api.weibo.cn",
-		"img.alicdn.com",
-		"danuoyi.alicdn.com",
-		"img.alicdn.com.danuoyi.alicdn.com.",
-	}
 	for _, k := range ds_array {
 		t.Log(k)
 		soa, ns, e := QuerySOA(k)
@@ -72,35 +83,78 @@ func TestQueryDomainSOAandNS(t *testing.T) {
 	}
 }
 
-func TestInitRegionTree(t *testing.T) {
-	d_arr := []string{
-		"www.baidu.com",
-		"www.a.shifen.com",
-		"api.weibo.cn",
-		"ww2.sinaimg.cn",
-		"weibo.cn",
-		"www.qq.com",
-		"www.yahoo.com",
-		"www.google.com",
-	}
-	for _, d := range d_arr {
-		soa, ns, e := QuerySOA(d)
+func buildDomainSOACache(b *testing.B, ds_arr []string) {
 
+	for _, d := range ds_arr {
+		soa, ns_arr, e := QuerySOA(d)
 		if e != nil {
-			t.Log(e)
-			t.Fatal()
+			b.Log(soa, ns_arr, e)
+			b.Fatal(e)
 		} else {
-			t.Log(ns)
-			t.Log(soa)
-			dn, e := NewDomainNode(d, soa.Hdr.Name, soa.Expire)
+			dn, e := NewDomainNode(d, soa.Hdr.Name, soa.Hdr.Ttl)
 			if e != nil {
-				t.Log(e)
-
-				//				t.Fatal()
-			} else {
-				dn.InitRegionTree()
-				t.Log(dn)
+				b.Log(dn, e)
+				b.Fatal()
 			}
+			ok, e := DomainRRCache.StoreDomainNodeToCache(dn)
+			if ok != true || e != nil {
+				b.Log(dn, ok,e)
+				b.Fatal()
+			}
+			soa_node := NewDomainSOANode(soa, ns_arr)
+			ok, e = DomainSOACache.StoreDomainSOANodeToCache(soa_node)
+			if ok != true || e != nil {
+				b.Log(ok)
+				b.Fatal(e)
+			}
+		}
+	}
+}
+
+func BenchmarkGetDomainSOANodeFromCache(b *testing.B) {
+	buildDomainSOACache(b, ds_array)
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			DomainSOACache.GetDomainSOANodeFromCache(&DomainSOANode{
+				SOAKey: "alicdn.com",
+			})
+		}
+	})
+	b.StopTimer()
+	b.ReportAllocs()
+
+}
+
+func initRegionTree(d string) (*DomainNode, *MyError.MyError) {
+	soa, ns_arr, e := QuerySOA(d)
+	if e != nil {
+		//		fmt.Println(ns_arr)
+		return nil, e
+	}
+	soa_node := NewDomainSOANode(soa, ns_arr)
+	ok, e := DomainSOACache.StoreDomainSOANodeToCache(soa_node)
+	if ok == true && e == nil {
+		dn, e := NewDomainNode(d, soa.Hdr.Name, soa.Expire)
+		ok, e := DomainRRCache.StoreDomainNodeToCache(dn)
+		if ok == true && e == nil {
+			dn.InitRegionTree()
+			return dn, nil
+		}
+	}
+	return nil, e
+
+}
+
+func TestInitRegionTree(t *testing.T) {
+
+	for _, d := range ds_array {
+		dn, e := initRegionTree(d)
+		if e != nil {
+			t.Fatal(e)
+		} else {
+			t.Log(dn)
 		}
 	}
 }
@@ -291,7 +345,7 @@ func TestMubitRadix(t *testing.T) {
 	for _, i := range ip2Find {
 
 		ii := utils.Ip4ToInt32(utils.StrToIP(i))
-		r, e := RadixTree.GetRegionFromCacheWithAddr(ii, DefaultRedaxSearchMask)
+		r, e := RadixTree.GetRegionFromCacheWithAddr(ii, DefaultRadixSearchMask)
 		if e != nil {
 			t.Log(e)
 			t.Log(i)
@@ -306,3 +360,4 @@ func TestMubitRadix(t *testing.T) {
 		t.Log(r1.Key(), r1.Value, r1.Bits())
 	})
 }
+

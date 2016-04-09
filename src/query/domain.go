@@ -6,17 +6,17 @@ import (
 	"sync"
 	"time"
 
-	"MyError"
-	"utils"
-
 	"github.com/miekg/bitradix"
 	"github.com/miekg/dns"
 	"github.com/petar/GoLLRB/llrb"
+
+	"MyError"
+	"utils"
 )
 
 const DefaultNetaddr = uint32(1 << 31)
 const DefaultNetMask = 1
-const DefaultRedaxSearchMask = 32
+const DefaultRadixSearchMask = 32
 
 type MuLLRB struct {
 	LLRB    *llrb.LLRB
@@ -49,6 +49,20 @@ type DomainNode struct {
 	DomainRegionTree *RegionTree
 }
 
+func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyError) {
+	if _, ok := dns.IsDomainName(d); !ok {
+		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not valid domain name")
+	}
+	return &DomainNode{
+		Domain: Domain{
+			DomainName: dns.Fqdn(d),
+			SOAKey:     soakey,
+			TTL:        t,
+		},
+		DomainRegionTree: nil,
+	}, nil
+}
+
 //TODO: redundant data types, need to be redesign
 // dns.RR && RrType && TTL
 type Region struct {
@@ -60,6 +74,28 @@ type Region struct {
 	RrType     uint16
 	TTL        uint32
 	UpdateTime time.Time
+}
+
+func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyError.MyError) {
+	if len(r) < 1 {
+		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
+	} else {
+		//fmt.Println(utils.GetDebugLine(), "NewRegion: ",
+		//	" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
+		utils.ServerLogger.Debug("NewRegion: r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
+	}
+
+	dr := &Region{
+		NetworkAddr: networkAddr,
+		NetworkMask: networkMask,
+		//		IpStart:     ipStart,
+		//		IpEnd:       ipEnd,
+		RR:         r,
+		RrType:     r[0].Header().Rrtype,
+		TTL:        r[0].Header().Ttl,
+		UpdateTime: time.Now(),
+	}
+	return dr, nil
 }
 
 type RRNew struct {
@@ -80,6 +116,15 @@ type DomainSOANode struct {
 	SOAKey string // store SOA record first field,not the full domain name,but only the "dig -t SOA domain" resoponse
 	NS     []*dns.NS
 	SOA    *dns.SOA
+	//todo: make SOA to be combined structure
+}
+
+func NewDomainSOANode(soa *dns.SOA, ns_a []*dns.NS) *DomainSOANode {
+	return &DomainSOANode{
+		SOAKey: soa.Hdr.Name,
+		NS:     ns_a,
+		SOA:    soa,
+	}
 }
 
 type DomainConfig struct {
@@ -112,8 +157,8 @@ func init() {
 	errCache := InitCache()
 
 	if errCache == nil {
-		//		fmt.Println(utils.GetDebugLine(), "InitDomainRRCache OK")
-		//		fmt.Println(utils.GetDebugLine(), "InitDomainSOACache OK")
+		utils.ServerLogger.Critical(utils.GetDebugLine(), "InitDomainRRCache OK")
+		utils.ServerLogger.Critical(utils.GetDebugLine(), "InitDomainSOACache OK")
 	} else {
 		//fmt.Println(utils.GetDebugLine(), "InitDomainRRCache() or InitDomainSOACache() failed")
 		//fmt.Println(utils.GetDebugLine(), "Plase contact chunshengster@gmail.com to get more help ")
@@ -164,6 +209,7 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 		//fmt.Println(utils.GetDebugLine(), "DomainRRCache already has DomainNode of d "+d.DomainName)
 		utils.ServerLogger.Debug("DomainRRCache already has DomainNode of d %s", d.DomainName)
 		d.DomainRegionTree = dt.DomainRegionTree
+		return true,nil
 
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
@@ -239,16 +285,6 @@ func (DT *DomainRRTree) DelDomainNode(d *Domain) (bool, *MyError.MyError) {
 	return true, nil
 }
 
-func InitDomainSOANode(d string,
-	soa *dns.SOA,
-	ns_a []*dns.NS) *DomainSOANode {
-	return &DomainSOANode{
-		SOAKey: d,
-		NS:     ns_a,
-		SOA:    soa,
-	}
-}
-
 func (DS *DomainSOANode) Less(b llrb.Item) bool {
 	if x, ok := b.(*DomainSOANode); ok {
 		return DS.SOAKey < x.SOAKey
@@ -258,9 +294,11 @@ func (DS *DomainSOANode) Less(b llrb.Item) bool {
 
 func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *MyError.MyError) {
 	dt, err := ST.GetDomainSOANodeFromCache(dsn)
+//	fmt.Println(dt,err)
 	if dt != nil && err == nil {
 		//fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
 		utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey)
+		return true,nil
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
@@ -404,38 +442,3 @@ func (RT *RegionTree) TraverseRegionTree() {
 	})
 }
 
-func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyError.MyError) {
-	if len(r) < 1 {
-		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
-	} else {
-		//fmt.Println(utils.GetDebugLine(), "NewRegion: ",
-		//	" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
-		utils.ServerLogger.Debug("NewRegion: r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
-	}
-
-	dr := &Region{
-		NetworkAddr: networkAddr,
-		NetworkMask: networkMask,
-		//		IpStart:     ipStart,
-		//		IpEnd:       ipEnd,
-		RR:         r,
-		RrType:     r[0].Header().Rrtype,
-		TTL:        r[0].Header().Ttl,
-		UpdateTime: time.Now(),
-	}
-	return dr, nil
-}
-
-func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyError) {
-	if _, ok := dns.IsDomainName(d); !ok {
-		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not valid domain name")
-	}
-	return &DomainNode{
-		Domain: Domain{
-			DomainName: dns.Fqdn(d),
-			SOAKey:     soakey,
-			TTL:        t,
-		},
-		DomainRegionTree: nil,
-	}, nil
-}

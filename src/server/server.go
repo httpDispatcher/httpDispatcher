@@ -8,12 +8,12 @@ import (
 	"query"
 	"strings"
 	"time"
-
-	"config"
 	"errors"
-	"utils"
 
 	"github.com/miekg/dns"
+
+	"config"
+	"utils"
 )
 
 type myHandler struct {
@@ -84,7 +84,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if config.InWhiteList(query_domain) {
-		ok, re, e := GetARecord(query_domain, srcIP)
+		ok, re, e := query.GetARecord(query_domain, srcIP)
 		if ok {
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusOK)
@@ -116,10 +116,10 @@ func NewServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/q", HttpDispacherQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)
-	mux.HandleFunc("/hello", HttpHelloWorldServe)
+	mux.HandleFunc("/h", HttpHelloWorldServe)
 	server := &http.Server{
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 		Handler:      mux,
 	}
 	listener, err := net.Listen("tcp", config.RC.Bind)

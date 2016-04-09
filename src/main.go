@@ -3,12 +3,12 @@ package main
 import (
 	"runtime"
 
+	"github.com/pkg/profile"
+
 	"config"
 	"query"
 	"server"
 	"utils"
-
-	"github.com/pkg/profile"
 )
 
 // param: lower case + Upper Case ,No _ spliter
