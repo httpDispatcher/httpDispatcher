@@ -17,6 +17,7 @@ import (
 )
 
 type myHandler struct {
+
 }
 
 type HttpDnsClient struct {
@@ -36,7 +37,7 @@ func RegionTraverServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_string := r.URL.Query().Get("d")
 
-	utils.QueryLogger.Info("query_domain: ", query_string, " url_path: ", url_path)
+	utils.QueryLogger.Infof("query_domain: ", query_string, " url_path: ", url_path)
 	//fmt.Println(query_string)
 	//fmt.Println(url_path)
 	w.Write([]byte(r.RemoteAddr))
@@ -66,7 +67,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 	srcIP := r.URL.Query().Get("ip")
 	if _, ok := dns.IsDomainName(query_domain); !ok {
 		fmt.Fprintln(w, "Error domain name: ", query_domain)
-		utils.ServerLogger.Info("error domain name : %s ", query_domain)
+		utils.ServerLogger.Infof("error domain name : %s ", query_domain)
 		return
 	}
 
@@ -74,7 +75,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 		hp := strings.Split(r.RemoteAddr, ":")
 		srcIP = hp[0]
 	}
-	utils.QueryLogger.Info("src ip: %s query_domain: %s url_path: %s", string(srcIP), query_domain, url_path)
+	utils.QueryLogger.Infof("src ip: %s query_domain: %s url_path: %s", string(srcIP), query_domain, url_path)
 	if x := net.ParseIP(srcIP); x == nil {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprint(w, srcIP)
@@ -107,7 +108,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintln(w, "Query for domain: "+query_domain+" is not permited\n")
-		utils.ServerLogger.Info("Query for domain: %s is not permited", query_domain)
+		utils.ServerLogger.Infof("Query for domain: %s is not permited", query_domain)
 		return
 	}
 }

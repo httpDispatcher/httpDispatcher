@@ -29,5 +29,4 @@ func main() {
 		query.InitMySQL(query.RC_MySQLConf)
 	}
 	server.NewServer()
-
 }
