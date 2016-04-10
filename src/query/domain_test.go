@@ -98,7 +98,7 @@ func buildDomainSOACache(b *testing.B, ds_arr []string) {
 			}
 			ok, e := DomainRRCache.StoreDomainNodeToCache(dn)
 			if ok != true || e != nil {
-				b.Log(dn, ok,e)
+				b.Log(dn, ok, e)
 				b.Fatal()
 			}
 			soa_node := NewDomainSOANode(soa, ns_arr)
@@ -303,7 +303,7 @@ func TestMubitRadix(t *testing.T) {
 		"8.8.8.8",
 		"8.8.7.1",
 	}
-	RadixTree := initDomainRegionTree()
+	RadixTree := NewDomainRegionTree()
 	for _, x := range cidrNet {
 		i, n, e := net.ParseCIDR(x)
 		if e != nil {
@@ -360,4 +360,3 @@ func TestMubitRadix(t *testing.T) {
 		t.Log(r1.Key(), r1.Value, r1.Bits())
 	})
 }
-

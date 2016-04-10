@@ -37,6 +37,14 @@ type DomainSOATree MuLLRB
 //For domain Region and A/CNAME record
 type RegionTree MubitRadix
 
+func NewDomainRegionTree() *RegionTree {
+	//	tbitRadix := bitradix.New32()
+	return &RegionTree{
+		Radix32: bitradix.New32(),
+		RWMutex: &sync.RWMutex{},
+	}
+}
+
 //TODO: redundant data types, need to be redesign
 type Domain struct {
 	DomainName string
@@ -59,7 +67,7 @@ func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyE
 			SOAKey:     soakey,
 			TTL:        t,
 		},
-		DomainRegionTree: nil,
+		DomainRegionTree: NewDomainRegionTree(),
 	}, nil
 }
 
@@ -209,7 +217,7 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 		//fmt.Println(utils.GetDebugLine(), "DomainRRCache already has DomainNode of d "+d.DomainName)
 		utils.ServerLogger.Debug("DomainRRCache already has DomainNode of d %s", d.DomainName)
 		d.DomainRegionTree = dt.DomainRegionTree
-		return true,nil
+		return true, nil
 
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
@@ -294,11 +302,11 @@ func (DS *DomainSOANode) Less(b llrb.Item) bool {
 
 func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *MyError.MyError) {
 	dt, err := ST.GetDomainSOANodeFromCache(dsn)
-//	fmt.Println(dt,err)
+	//	fmt.Println(dt,err)
 	if dt != nil && err == nil {
 		//fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
 		utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey)
-		return true,nil
+		return true, nil
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
@@ -351,17 +359,9 @@ func (ST *DomainSOATree) DelDomainSOANode(ds *DomainSOANode) *MyError.MyError {
 
 func (a *DomainNode) InitRegionTree() (bool, *MyError.MyError) {
 	if a.DomainRegionTree == nil {
-		a.DomainRegionTree = initDomainRegionTree()
+		a.DomainRegionTree = NewDomainRegionTree()
 	}
 	return true, nil
-}
-
-func initDomainRegionTree() *RegionTree {
-	//	tbitRadix := bitradix.New32()
-	return &RegionTree{
-		Radix32: bitradix.New32(),
-		RWMutex: &sync.RWMutex{},
-	}
 }
 
 func (RT *RegionTree) GetRegionFromCache(r *Region) (*Region, *MyError.MyError) {
@@ -441,4 +441,3 @@ func (RT *RegionTree) TraverseRegionTree() {
 		utils.ServerLogger.Debug("TraverseRegionTree: ", r1.Value, r1.Bits(), r1.Leaf(), i)
 	})
 }
-

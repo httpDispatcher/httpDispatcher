@@ -2,10 +2,10 @@ package query
 
 import (
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"strconv"
 
 	"github.com/miekg/dns"
 
@@ -30,7 +30,6 @@ type Query struct {
 	IsEdns0Subnet bool
 	Msg           *dns.Msg
 }
-
 
 // func NewQuery , build a Query Instance for Querying
 func NewQuery(t uint16, ns string, edns0Subnet bool) *Query {
@@ -65,11 +64,10 @@ func RenewDnsClient(c *dns.Client) {
 func RenewDnsMsg(m *dns.Msg) {
 	m.Extra = nil
 	m.Answer = nil
-	m.AuthenticatedData= false
+	m.AuthenticatedData = false
 	m.CheckingDisabled = false
 	m.Question = nil
 }
-
 
 func PackEdns0SubnetOPT(ip string, sourceNetmask, sourceScope uint8) *dns.OPT {
 	edns0subnet := &dns.EDNS0_SUBNET{
@@ -174,7 +172,6 @@ func doQuery(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, close cha
 	return nil
 }
 
-
 // General Query for dns upstream query
 // param: t string ["tcp"|"udp]
 // 		  queryType uint16 dns.QueryType
@@ -250,7 +247,6 @@ func preQuery(d, srcIP string) (*dns.OPT, *MyError.MyError) {
 	}
 	return o, nil
 }
-
 
 func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	//fmt.Println(utils.GetDebugLine(), " QuerySOA: ", d)
@@ -367,7 +363,6 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	}
 }
 
-
 //
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	//	ds, dp, _, e := preQuery(d, false)
@@ -439,7 +434,6 @@ func ParseA(a []dns.RR, d string) ([]*dns.A, bool) {
 	return nil, false
 }
 
-
 // Query
 func QueryCNAME(d, srcIP string, ds []string, dp string) ([]*dns.CNAME, *dns.RR_Header, *dns.EDNS0_SUBNET, *MyError.MyError) {
 	o, e := preQuery(d, srcIP)
@@ -488,4 +482,3 @@ func ParseCNAME(c []dns.RR, d string) ([]*dns.CNAME, bool) {
 	}
 	return nil, false
 }
-

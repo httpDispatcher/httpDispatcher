@@ -36,14 +36,23 @@ func GetSOARecord(d string) (*DomainSOANode, *MyError.MyError) {
 	// Need to store DomainSOANode and DomainNOde both
 	if e == nil && soa_t != nil && ns != nil {
 		soa = NewDomainSOANode(soa_t, ns)
+		go func(d string, soa *DomainSOANode) {
+			//TODO: get StoreDomainSOANode return values
+			_, e := DomainSOACache.StoreDomainSOANodeToCache(soa)
+			if e != nil {
+				utils.ServerLogger.Error("DomainSOACache.StoreDomainSOANodeToCache return error :",
+					e, " param :", soa)
+			}
+			rrnode, _ := NewDomainNode(d, soa.SOAKey, soa.SOA.Expire)
+			_, e = DomainRRCache.StoreDomainNodeToCache(rrnode)
+			if e != nil {
+				utils.ServerLogger.Error("DomainRRCache.StoreDomainNodeToCache return error :",
+					e, " param :", rrnode)
+			}
+		}(d, soa)
 
-		//TODO: get StoreDomainSOANode return values
-		go DomainSOACache.StoreDomainSOANodeToCache(soa)
-		rrnode, _ := NewDomainNode(d, soa.SOAKey, soa_t.Expire)
-		go DomainRRCache.StoreDomainNodeToCache(rrnode)
 		return soa, nil
 	}
-	//	}
 	// QuerySOA fail
 	return nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Finally GetSOARecord failed")
 }
@@ -52,49 +61,39 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	var Regiontree *RegionTree
 	var bigloopflag bool = false // big loop flag
 	var c = 0                    //big loop count
-	//fmt.Println(utils.GetDebugLine(), "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
-	//Can't loop for CNAME chain than bigger than 10
+	//Can't loop for CNAME chain than bigger than CNAME_CHAIN_LENGTH
 	for dst := d; (bigloopflag == false) && (c < CNAME_CHAIN_LENGTH); c++ {
-		//fmt.Println(utils.GetDebugLine(), "GetARecord : ", dst, " srcIP: ", srcIP)
-		utils.ServerLogger.Debug("GetARecord : %s srcIP: %s", dst, srcIP)
+		utils.ServerLogger.Debug("Trying GetARecord : %s srcIP: %s", dst, srcIP)
 
-		ok, dn, RR, e := GetAFromCache(dst, srcIP)
-		//fmt.Println(utils.GetDebugLine(), " GetAFromCache return : ", ok, dn, RR, e)
-		utils.ServerLogger.Debug("GetAFromCache return: ", ok, dn, RR, e)
-		if ok {
+		dn, RR, e := GetAFromCache(dst, srcIP)
+		utils.ServerLogger.Debug("GetAFromCache return: ", dn, RR, e)
+		if e == nil {
 			// All is right and especilly RR is A record
-			return ok, RR, nil
+			return true, RR, nil
 		} else {
-			if (dn != nil) && (RR != nil) {
+			//Return Cname record
+			if (e.ErrorNo == MyError.ERROR_CNAME) && (dn != nil) && (RR != nil) {
 				if dst_cname, ok := RR[0].(*dns.CNAME); ok {
 					dst = dst_cname.Target
 					continue
+				} else {
+					utils.ServerLogger.Error("dn:", dn, "RR:", RR, "e:", e)
 				}
-			} else if (dn != nil) && (RR == nil) {
+			} else {
 				// hava domain node ,but region node is nil,need queryA
-
-			} //else if dn == nil {
-			//				// have no daomain node,need query SQA
-			//			}
-			//			goto GetFromSOA
+				utils.ServerLogger.Error("error get dn:", dn, "RR:", RR, "e:", e, "need query A from dns/mysql backend")
+			}
 		}
 
 		soa, e := GetSOARecord(dst)
-		//fmt.Println(utils.GetDebugLine(), "GetARecord: GetSOARecord return : ", soa, " error: ", e)
 		utils.ServerLogger.Debug("GetSOARecord return: ", soa, " error: ", e)
 		if e != nil {
-			// error! need return
-			//fmt.Print(utils.GetDebugLine(), "GetARecord: ")
 			utils.ServerLogger.Error("GetSOARecord error: %s", e.Error())
-			//fmt.Println(e)
-			//fmt.Println("error111,need return")
 		}
 		var cacheflag bool = false
-		var cc = 0
-		//fmt.Println(utils.GetDebugLine(), " Debuginfo : init Cache dn , cacheflag: ", cacheflag,
-		//	" cc: ", cc, " (cacheflag == false) && (cc < 5) ", (cacheflag == false) && (cc < 5))
-		for cacheflag = false; (cacheflag == false) && (cc < 5); {
+		var retry = 0
+		for cacheflag = false; (cacheflag == false) && (retry < 5); {
 			// wait for goroutine 'StoreDomainNodeToCache' in GetSOARecord to be finished
 			dn, e = DomainRRCache.GetDomainNodeFromCacheWithName(dst)
 			if e != nil {
@@ -105,7 +104,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 				utils.ServerLogger.Error("GetARecord : have not got cache GetDomainNodeFromCacheWithName, need waite %s", e.Error())
 				time.Sleep(1 * time.Second)
 				if e.ErrorNo == MyError.ERROR_NOTFOUND {
-					cc++
+					retry++
 				} else {
 					utils.ServerLogger.Critical("GetARecord error %s", e.Error())
 					//fmt.Println(utils.GetDebugLine(), e)
@@ -122,7 +121,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN,
 				"GetARecord func GetSOARecord failed: "+d)
 		}
-		dn.InitRegionTree()
+		//dn.InitRegionTree()
 		Regiontree = dn.DomainRegionTree
 
 		//fmt.Println(utils.GetDebugLine(), "++++++++++++++++++++++++++++++++++++++++++++++")
@@ -172,38 +171,25 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error")
 }
 
-func GetAFromCache(dst, srcIP string) (bool, *DomainNode, []dns.RR, *MyError.MyError) {
+func GetAFromCache(dst, srcIP string) (*DomainNode, []dns.RR, *MyError.MyError) {
 	dn, e := DomainRRCache.GetDomainNodeFromCacheWithName(dst)
-	//fmt.Println(utils.GetDebugLine(), "GetAFromCache:", dn, e)
 	if e == nil && dn != nil && dn.DomainRegionTree != nil {
 		//Get DomainNode succ,
 		r, e := dn.DomainRegionTree.GetRegionFromCacheWithAddr(
 			utils.Ip4ToInt32(net.ParseIP(srcIP)), DefaultRadixSearchMask)
-		//fmt.Println(utils.GetDebugLine(), "GetAFromCache : ", r, e)
-		if e == nil {
-			//fmt.Println(utils.GetDebugLine(), "GetAFromCache: Gooooot: ", r)
+		if e == nil && len(r.RR) > 0 {
 			if r.RrType == dns.TypeA {
-				//fmt.Println(utils.GetDebugLine(), "GetAFromCache: Goooot A", r.RR)
-				utils.ServerLogger.Debug("GetAFromCache: Goooot A ", r.RR)
-				return true, dn, r.RR, nil
+				utils.ServerLogger.Debug("GetAFromCache: Goooot A ", dst, srcIP, r.RR)
+				return dn, r.RR, nil
 			} else if r.RrType == dns.TypeCNAME {
-				//fmt.Println(utils.GetDebugLine(), "GetAFromCache : Goooot CNAME", r.RR)
-				utils.ServerLogger.Debug("GetAFromCache: Goooot CNAME ", r.RR)
-				if len(r.RR) > 0 {
-					//					dst = r.RR[0].(*dns.CNAME).Target
-					return false, dn, r.RR, MyError.NewError(MyError.ERROR_NOTVALID,
-						"Get CNAME From,Requery A for "+r.RR[0].(*dns.CNAME).Target)
-				} else {
-					//fmt.Println(utils.GetDebugLine(), "Error Got RegionFromCacheWithAddr", r.RR)
-					return false, dn, nil, MyError.NewError(MyError.ERROR_NORESULT, "Error Got RegionFromCacheWithAddr ")
-				}
-				//				continue
+				utils.ServerLogger.Debug("GetAFromCache: Goooot CNAME ", dst, srcIP, r.RR)
+				return dn, r.RR, MyError.NewError(MyError.ERROR_CNAME,
+					"Get CNAME From,Requery A for "+r.RR[0].(*dns.CNAME).Target)
 			}
-		} else if e.ErrorNo == MyError.ERROR_NOTFOUND {
-			//fmt.Println(utils.GetDebugLine(), "Not found r, need query dns")
-			return false, dn, nil, MyError.NewError(MyError.ERROR_NOTFOUND,
-				"Not found R in cache, dst :"+dst+" srcIP "+srcIP)
 		}
+
+		return dn, nil, MyError.NewError(MyError.ERROR_NOTFOUND,
+			"Not found R in cache, dst :"+dst+" srcIP "+srcIP)
 		// return
 	} else if e == nil && dn != nil && dn.DomainRegionTree == nil {
 		// Get domainNode in cache tree,but no RR in region tree,need query with NS
@@ -215,23 +201,23 @@ func GetAFromCache(dst, srcIP string) (bool, *DomainNode, []dns.RR, *MyError.MyE
 		//
 		//fmt.Println("RegionTree is nil ,Init it: "+reflect.ValueOf(ok).String(), e)
 		utils.ServerLogger.Debug("RegionTree is nil ,Init it: %s ", reflect.ValueOf(ok).String())
-		return false, dn, nil, MyError.NewError(MyError.ERROR_NORESULT,
+		return dn, nil, MyError.NewError(MyError.ERROR_NORESULT,
 			"Get domainNode in cache tree,but no RR in region tree,need query with NS, dst : "+dst+" srcIP "+srcIP)
 	} else {
 		// e != nil
 		// RegionTree is not nil
 		//fmt.Print(utils.GetDebugLine(), "GetAFromCache dst: "+dst+" srcIP: "+srcIP)
 		//fmt.Println(dn, e)
-		if e.ErrorNo != MyError.ERROR_NOTFOUND {
-			//fmt.Println("Found unexpected error, need return !")
-			utils.ServerLogger.Critical("Found unexpected error, need return !")
-			os.Exit(2)
-		} else {
-			return false, nil, nil, e
+		if e != nil {
+			if e.ErrorNo != MyError.ERROR_NOTFOUND || dn == nil {
+				//fmt.Println("Found unexpected error, need return !")
+				utils.ServerLogger.Critical("Found unexpected error, need return !", "error :", e, "dn:", dn)
+				os.Exit(2)
+			}
 		}
-
+		return nil, nil, e
 	}
-	return false, nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
+	return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error!")
 }
 
 func GetAFromMySQLBackend(dst, srcIP string, regionTree *RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {

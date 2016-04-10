@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"query"
 	"strings"
 	"time"
-	"errors"
 
 	"github.com/miekg/dns"
 
