@@ -162,7 +162,7 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError
 		if rows_count > 0 {
 			utils.QueryLogger.Debug("get uu: %v, zz: %v", uu, zz)
 			if isHybird {
-				utils.QueryLogger.Info("Both TypeA and TypeCNAME for domain: " +
+				utils.QueryLogger.Infof("Both TypeA and TypeCNAME for domain: " +
 					strconv.Itoa(int(domainId)) + " and Regionid :" + strconv.Itoa(int(regionId)) +
 					", that's not good !")
 				MyRR = nil

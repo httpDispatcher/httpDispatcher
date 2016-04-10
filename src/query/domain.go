@@ -163,7 +163,7 @@ func init() {
 		//fmt.Println(utils.GetDebugLine(), "InitDomainRRCache() or InitDomainSOACache() failed")
 		//fmt.Println(utils.GetDebugLine(), "Plase contact chunshengster@gmail.com to get more help ")
 		utils.ServerLogger.Critical("InitDomainRRCache() or InitDomainSOACache() failed")
-		utils.ServerLogger.Info("Plase contact chunshengster@gmail.com to get more help")
+		utils.ServerLogger.Infof("Plase contact chunshengster@gmail.com to get more help")
 		os.Exit(2)
 	}
 
