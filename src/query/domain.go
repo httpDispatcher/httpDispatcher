@@ -14,8 +14,8 @@ import (
 	"utils"
 )
 
-const DefaultNetaddr = uint32(1 << 31)
-const DefaultNetMask = 1
+const DefaultRadixNetaddr = uint32(1 << 31)
+const DefaultRadixNetMask = 1
 const DefaultRadixSearchMask = 32
 
 type MuLLRB struct {
@@ -305,7 +305,7 @@ func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *M
 	//	fmt.Println(dt,err)
 	if dt != nil && err == nil {
 		//fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
-		utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey)
+		utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey, dsn)
 		return true, nil
 	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
@@ -315,7 +315,7 @@ func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *M
 		ST.LLRB.ReplaceOrInsert(dsn)
 		ST.RWMutex.Unlock()
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache : Store "+dsn.SOAKey+" into DomainSOACache Done!")
-		utils.ServerLogger.Debug("StoreDomainSOANodeToCache : Store %s into DomainSOACache Done", dsn.SOAKey)
+		utils.ServerLogger.Debug("StoreDomainSOANodeToCache : Store %s into DomainSOACache Done", dsn.SOAKey, dsn)
 		return true, nil
 	}
 	return false, err
@@ -379,8 +379,8 @@ func (RT *RegionTree) GetRegionFromCacheWithAddr(addr uint32, mask int) (*Region
 		} else {
 			return nil, MyError.NewError(MyError.ERROR_NOTVALID, "Found result but not valid,need check !")
 		}
-	} else if addr != DefaultNetaddr && mask != DefaultNetMask {
-		return RT.GetRegionFromCacheWithAddr(DefaultNetaddr, DefaultNetMask)
+	} else if addr != DefaultRadixNetaddr && mask != DefaultRadixNetMask {
+		return RT.GetRegionFromCacheWithAddr(DefaultRadixNetaddr, DefaultRadixNetMask)
 	}
 	return nil, MyError.NewError(MyError.ERROR_NOTFOUND, "Not found search region "+string(addr)+":"+string(mask))
 }

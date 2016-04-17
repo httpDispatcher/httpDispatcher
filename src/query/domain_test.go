@@ -329,11 +329,11 @@ func TestMubitRadix(t *testing.T) {
 	}
 	// For default route
 	RadixTree.AddRegionToCache(&Region{
-		NetworkAddr: DefaultNetaddr,
-		NetworkMask: DefaultNetMask,
+		NetworkAddr: DefaultRadixNetaddr,
+		NetworkMask: DefaultRadixNetMask,
 		RR: []dns.RR{
 			dns.RR(&dns.A{
-				A: utils.Int32ToIP4(DefaultNetaddr),
+				A: utils.Int32ToIP4(DefaultRadixNetaddr),
 				Hdr: dns.RR_Header{
 					Rrtype: 1,
 					Class:  1,

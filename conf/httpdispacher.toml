@@ -9,7 +9,7 @@ server_log = "./httpdispacher.server.log"
 query_log = "./httpdispacher.query.log"
 querylog_format = "%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}"
 serverlog_format = "%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}"
-log_level = "INFO"
+log_level = "WARNING"
 
 [mysql]
 #string
