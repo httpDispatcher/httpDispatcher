@@ -19,7 +19,7 @@ import (
 type myHandler struct {
 }
 
-type HttpDnsClient struct {
+type DispatcherClient struct {
 	ClientAddr string
 	AuthToken  string
 	Identifier string
@@ -28,6 +28,7 @@ type HttpDnsClient struct {
 }
 
 func (s *myHandler) ServerHttp(w http.ResponseWriter, r *http.Request) {
+
 	w.Write([]byte(r.RemoteAddr))
 	utils.ServerLogger.Debug("Request header: %s  RequestURI: %s  URI: %s", r.Header, r.RequestURI, r.URL)
 }
@@ -112,7 +113,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewServer() {
+func Serve() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/q", HttpDispacherQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)

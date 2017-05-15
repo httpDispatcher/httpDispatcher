@@ -28,6 +28,6 @@ func main() {
 		query.RC_MySQLConf = config.RC.MySQLConf
 		query.InitMySQL(query.RC_MySQLConf)
 	}
-	server.NewServer()
+	server.Serve()
 
 }
