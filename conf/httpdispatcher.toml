@@ -1,12 +1,13 @@
 #string
-bind = "0.0.0.0:8080"
+bind = "0.0.0.0:8081"
 #string array
-domains = ["api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com.","www.taobao.com."]
+domains = ["api.mgtv.com","api.weibo.cn.","weibo.cn.","taobao.com.","www.baidu.com.","www.taobao.com."]
 #bool
 mysql_enable = false
 #string
-server_log = "./httpdispacher.server.log"
-query_log = "./httpdispacher.query.log"
+server_log = "./httpdispatcher.server.log"
+query_log = "./httpdispatcher.query.log"
+httpd_log = "./httpdispatcher.httpd.log"
 querylog_format = "%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}"
 serverlog_format = "%{time:2006-01-02T15:04:05} %{shortfile}|%{shortfunc} %{level:.4s} %{id:03x}%{message}"
 log_level = "WARNING"
