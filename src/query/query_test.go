@@ -23,7 +23,7 @@ var ttlmap = map[string]uint32{
 }
 
 func TestMain(m *testing.M) {
-	config.ParseConf("/Users/chunsheng/GooleDrive/Work/github/16.httpDispacher/conf/httpdispacher.toml")
+	config.ParseConf("../conf/httpdispatcher.toml")
 	if config.RC.MySQLEnabled {
 		RC_MySQLConf = config.RC.MySQLConf
 		InitMySQL(RC_MySQLConf)
@@ -245,7 +245,7 @@ func TestQuerySOA(t *testing.T) {
 		"danuoyi.alicdn.com.":                "xxxxx",
 		"fjdsljflsj.jfslj":                   "...",
 	}
-	for k, _ := range dsmap {
+	for k,_ := range dsmap {
 		t.Log("----------------------------------")
 		t.Log(k)
 		soa, ns_a, e := QuerySOA(k)
