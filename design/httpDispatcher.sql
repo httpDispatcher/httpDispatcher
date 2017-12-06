@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.6.25-73.1, for osx10.11 (x86_64)
 --
--- Host: localhost    Database: httpDispacher
+-- Host: localhost    Database: httpDispatcher
 -- ------------------------------------------------------
 -- Server version	5.6.25-73.1
 

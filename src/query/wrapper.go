@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chunshengster/httpDispacher/src/query"
+	"github.com/chunshengster/httpDispatcher/src/query"
 	"github.com/miekg/dns"
 
 	"MyError"

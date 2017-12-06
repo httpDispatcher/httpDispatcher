@@ -8,16 +8,16 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 
 -- -----------------------------------------------------
--- Schema httpDispacher
+-- Schema httpDispatcher
 -- -----------------------------------------------------
-DROP SCHEMA IF EXISTS `httpDispacher` ;
+DROP SCHEMA IF EXISTS `httpDispatcher` ;
 
 -- -----------------------------------------------------
--- Schema httpDispacher
+-- Schema httpDispatcher
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `httpDispacher` DEFAULT CHARACTER SET utf8 ;
+CREATE SCHEMA IF NOT EXISTS `httpDispatcher` DEFAULT CHARACTER SET utf8 ;
 SHOW WARNINGS;
-USE `httpDispacher` ;
+USE `httpDispatcher` ;
 
 -- -----------------------------------------------------
 -- Table `DomainTable`

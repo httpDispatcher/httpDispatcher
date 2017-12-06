@@ -18,7 +18,7 @@ mysql_host = "127.0.0.1"
 #int
 mysql_port = 3306
 #string
-mysql_database = "httpDispacher_v1"
+mysql_database = "httpDispatcher_v1"
 #string
 mysql_user = "root"
 #string

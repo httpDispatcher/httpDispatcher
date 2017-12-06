@@ -6,9 +6,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"query"
 	"strings"
 	"time"
+
+	"query"
 
 	"github.com/miekg/dns"
 
@@ -61,7 +62,7 @@ func HttpHelloWorldServe(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
+func HttpDispatcherQueryServe(w http.ResponseWriter, r *http.Request) {
 	url_path := r.URL.Path
 	query_domain := r.URL.Query().Get("d")
 	srcIP := r.URL.Query().Get("ip")
@@ -115,7 +116,7 @@ func HttpDispacherQueryServe(w http.ResponseWriter, r *http.Request) {
 
 func Serve() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/q", HttpDispacherQueryServe)
+	mux.HandleFunc("/q", HttpDispatcherQueryServe)
 	mux.HandleFunc("/t", RegionTraverServe)
 	mux.HandleFunc("/h", HttpHelloWorldServe)
 	server := &http.Server{

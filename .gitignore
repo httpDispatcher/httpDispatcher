@@ -18,5 +18,5 @@
 .idea/*
 httpDispatcher.iml
 src/httpDispatcher
-src/httpdispacher.query.log
-src/httpdispacher.server.log
+src/httpdispatcher.query.log
+src/httpdispatcher.server.log
