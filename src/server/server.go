@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"query"
-
 	"github.com/miekg/dns"
 
 	"config"
+	"query"
 	"utils"
 )
 
