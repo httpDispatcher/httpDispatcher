@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chunshengster/httpDispatcher/src/query"
+	//"github.com/chunshengster/httpDispatcher/src/query"
 	"github.com/miekg/dns"
 
 	"MyError"
@@ -299,7 +299,7 @@ func GetAFromDNSBackend(
 		ns_a = append(ns_a, x.Ns)
 	}
 
-	rr, edns_h, edns, e := QueryA(dst, srcIP, ns_a, query.NS_SERVER_PORT)
+	rr, edns_h, edns, e := QueryA(dst, srcIP, ns_a, NS_SERVER_PORT)
 	//todo: ends_h ends need to be parsed and returned!
 	utils.QueryLogger.Info("QueryA(): dst:", dst, "srcIP:", srcIP, "ns_a:", ns_a, " returned rr:", rr, "edns_h:", edns_h,
 		"edns:", edns, "e:", e)
