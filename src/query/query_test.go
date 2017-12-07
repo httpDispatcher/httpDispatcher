@@ -336,7 +336,7 @@ func TestGetRRFromMySQL(t *testing.T) {
 					}
 				} else {
 					t.Log(e)
-					if e.errorNo == MyError.ERROR_NORESULT {
+					if e.ErrorNo == MyError.ERROR_NORESULT {
 					} else {
 						t.Fail()
 					}
@@ -366,7 +366,7 @@ func TestGetRRFromMySQL(t *testing.T) {
 //					//				}
 //				} else {
 //					b.Log(e)
-//					if e.errorNo == MyError.ERROR_NORESULT {
+//					if e.ErrorNo == MyError.ERROR_NORESULT {
 //					} else {
 //						//						b.Fail()
 //					}

@@ -77,7 +77,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			return true, RR, nil
 		} else {
 			//Return Cname record
-			if (e.errorNo == MyError.ERROR_CNAME) && (dn != nil) && (RR != nil) {
+			if (e.ErrorNo == MyError.ERROR_CNAME) && (dn != nil) && (RR != nil) {
 				if dst_cname, ok := RR[0].(*dns.CNAME); ok {
 					dst = dst_cname.Target
 					continue
@@ -124,7 +124,7 @@ func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 			} else if ok && rtype == dns.TypeCNAME {
 				dst = rr_i[0].(*dns.CNAME).Target
 				continue
-			} else if !ok && rr_i == nil && ee != nil && ee.errorNo == MyError.ERROR_NORESULT {
+			} else if !ok && rr_i == nil && ee != nil && ee.ErrorNo == MyError.ERROR_NORESULT {
 				continue
 			} else {
 				return false, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Unknown error")
@@ -171,7 +171,7 @@ func GetAFromCache(dst, srcIP string) (*DomainNode, []dns.RR, *MyError.MyError) 
 		// e != nil
 		// RegionTree is not nil
 		if e != nil {
-			if e.errorNo != MyError.ERROR_NOTFOUND {
+			if e.ErrorNo != MyError.ERROR_NOTFOUND {
 				//fmt.Println("Found unexpected error, need return !")
 				utils.ServerLogger.Info("Not found, need return :", "error :", e, "dn:", dn)
 				//os.Exit(2)
@@ -194,10 +194,10 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *RegionTree) (bool, []dn
 	region, ee := RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
 	if ee != nil {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
-		return false, nil, uint16(0), MyError.NewError(ee.errorNo, "GetRegionWithIPFromMySQL return "+ee.Error())
+		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+ee.Error())
 	}
 	RR, eee := RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
-	if eee != nil && eee.errorNo == MyError.ERROR_NORESULT {
+	if eee != nil && eee.ErrorNo == MyError.ERROR_NORESULT {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
 		//	"RegionID:", region.IdRegion, eee)
 		//fmt.Println(utils.GetDebugLine(), "Try to GetRRFromMySQL with Default Region")
@@ -206,7 +206,7 @@ func GetAFromMySQLBackend(dst, srcIP string, regionTree *RegionTree) (bool, []dn
 		if eee != nil {
 			//fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
 			//	"RegionID:", 0, eee)
-			return false, nil, uint16(0), MyError.NewError(eee.errorNo, "Error GetRRFromMySQL with DomainID:"+strconv.Itoa(domainId)+eee.Error())
+			return false, nil, uint16(0), MyError.NewError(eee.ErrorNo, "Error GetRRFromMySQL with DomainID:"+strconv.Itoa(domainId)+eee.Error())
 		}
 	} else if eee != nil {
 		utils.ServerLogger.Error(eee.Error())
@@ -360,7 +360,7 @@ func AddAToRegionCache(dst string, srcIP string, R []dns.RR, edns_h *dns.RR_Head
 			//	" GetARecord : have not got cache GetDomainNodeFromCacheWithName, need waite ", e)
 			utils.ServerLogger.Error("GetARecord : have not got cache GetDomainNodeFromCacheWithName, need waite %s", e.Error())
 			time.Sleep(1 * time.Second)
-			if e.errorNo == MyError.ERROR_NOTFOUND {
+			if e.ErrorNo == MyError.ERROR_NOTFOUND {
 				retry++
 			} else {
 				utils.ServerLogger.Critical("GetARecord error %s", e.Error())

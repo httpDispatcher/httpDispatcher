@@ -187,7 +187,7 @@ func (DT *DomainRRTree) StoreDomainNodeToCache(d *DomainNode) (bool, *MyError.My
 		d.DomainRegionTree = dt.DomainRegionTree
 		return true, nil
 
-	} else if err.errorNo != MyError.ERROR_NOTFOUND || err.errorNo != MyError.ERROR_TYPE {
+	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), " StoreDomainNodeToCache return error: ", err)
 		utils.ServerLogger.Error("StoreDomainNodeToCache return :  %s", err.Error())
@@ -275,7 +275,7 @@ func (ST *DomainSOATree) StoreDomainSOANodeToCache(dsn *DomainSOANode) (bool, *M
 		//fmt.Println(utils.GetDebugLine(), "DomainSOACache already has DomainSOANode of dsn "+dsn.SOAKey)
 		utils.ServerLogger.Debug("DomainSOACache already has DomainSOANode of dsn %s", dsn.SOAKey, dsn)
 		return true, nil
-	} else if err.errorNo != MyError.ERROR_NOTFOUND || err.errorNo != MyError.ERROR_TYPE {
+	} else if err.ErrorNo != MyError.ERROR_NOTFOUND || err.ErrorNo != MyError.ERROR_TYPE {
 		// for not found and type error, we should replace the node
 		//fmt.Println(utils.GetDebugLine(), "StoreDomainSOANodeToCache: ", err)
 		utils.ServerLogger.Error("StoreDomainSOANodeToCache:  %s", err.Error())
