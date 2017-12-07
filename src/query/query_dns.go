@@ -132,7 +132,7 @@ func GenerateParentDomain(d string) (string, *MyError.MyError) {
 }
 
 func doQuery(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, close chan struct{}) *dns.Msg {
-	//	r := &dns.Msg{}
+	//	r := &dns.msg{}
 	//	var ee error
 	//fmt.Println(utils.GetDebugLine(), " doQuery: ", " m.Question: ", m.Question,
 	//	" ds: ", ds, " dp: ", dp, " queryType ", queryType)
@@ -141,6 +141,7 @@ func doQuery(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, close cha
 	case <-close:
 		return nil
 	default:
+		// retry for 3 times.
 		for l := 0; l < 3; l++ {
 			r, _, ee := c.Exchange(&m, ds+":"+dp)
 			if (ee != nil) || (r == nil) || (r.Answer == nil) {
@@ -191,7 +192,7 @@ func DoQuery(
 	}(c)
 	c.Net = t
 
-	//	m := &dns.Msg{}
+	//	m := &dns.msg{}
 	m := DnsMsgPool.Get().(*dns.Msg)
 	defer func(m *dns.Msg) {
 		go func() {
@@ -280,13 +281,13 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 			}
 			soa, ns_a, e = ParseSOA(d, rr)
 			if e != nil {
-				switch e.ErrorNo {
+				switch e.errorNo {
 				case MyError.ERROR_SUBDOMAIN, MyError.ERROR_NOTVALID:
 					utils.ServerLogger.Error("ERROR_NOTVALID: %s", e.Error())
 					var ee *MyError.MyError
 					d, ee = GenerateParentDomain(d)
 					if ee != nil {
-						if ee.ErrorNo == MyError.ERROR_NORESULT {
+						if ee.errorNo == MyError.ERROR_NORESULT {
 							//							fmt.Println(ee)
 							//							continue
 						}
@@ -317,7 +318,7 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 						//TODO: do some log
 					}
 				}
-				//				fmt.Println("============xxxxxx================")
+				//fmt.Println("============xxxxxx================")
 				//fmt.Println(utils.GetDebugLine(), "QuerySOA: soa record ", soa, " ns_a: ", ns_a)
 				utils.ServerLogger.Debug("QuerySOA: soa record %v ns_a: %v", soa, ns_a)
 				return soa, ns_a, nil
@@ -366,7 +367,10 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 //
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	//	ds, dp, _, e := preQuery(d, false)
-	cf, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
+	cf, error := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if error {
+		return nil, MyError.NewError(MyError.ERROR_NORESOLVCONF, "No /etc/resolv.conf exists!")
+	}
 	e := &MyError.MyError{}
 	r := &dns.Msg{}
 
@@ -385,7 +389,7 @@ func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	return nil, e
 }
 
-// Parse dns.Msg.Answer in dns response msg that use TypeNS as request type.
+// Parse dns.msg.Answer in dns response msg that use TypeNS as request type.
 func ParseNS(ns []dns.RR) (bool, []*dns.NS) {
 	var ns_rr []*dns.NS
 	for _, n_s := range ns {
@@ -460,8 +464,8 @@ func QueryCNAME(d, srcIP string, ds []string, dp string) ([]*dns.CNAME, *dns.RR_
 	return cname_a, edns_header, edns, nil
 }
 
-// Filter CNAME record in dns.Msg.Answer message.
-// 	if r(*dns.Msg.Answer) includes (*dns.CNAME) , than return the CNAME record array.
+// Filter CNAME record in dns.msg.Answer message.
+// 	if r(*dns.msg.Answer) includes (*dns.CNAME) , than return the CNAME record array.
 func ParseCNAME(c []dns.RR, d string) ([]*dns.CNAME, bool) {
 	//fmt.Println(utils.GetDebugLine(), "ParseCNAME line 99: ", c)
 	utils.ServerLogger.Debug("ParseCNAME: %s", c)

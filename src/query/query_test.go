@@ -2,10 +2,11 @@ package query
 
 //go test -v query -run=none -benchmem -benchtime 10s -count 4 -cpuprofile querybench.cpu.out -memprofile querybench.mem.out -bench "."
 import (
-	"MyError"
-	"config"
 	"reflect"
 	"testing"
+
+	"MyError"
+	"config"
 	"utils"
 
 	"github.com/miekg/dns"
@@ -335,7 +336,7 @@ func TestGetRRFromMySQL(t *testing.T) {
 					}
 				} else {
 					t.Log(e)
-					if e.ErrorNo == MyError.ERROR_NORESULT {
+					if e.errorNo == MyError.ERROR_NORESULT {
 					} else {
 						t.Fail()
 					}
@@ -365,7 +366,7 @@ func TestGetRRFromMySQL(t *testing.T) {
 //					//				}
 //				} else {
 //					b.Log(e)
-//					if e.ErrorNo == MyError.ERROR_NORESULT {
+//					if e.errorNo == MyError.ERROR_NORESULT {
 //					} else {
 //						//						b.Fail()
 //					}
