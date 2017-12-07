@@ -1,11 +1,11 @@
-package query
+package backend
 
 import (
-	"MyError"
 	"database/sql"
-	"utils"
-
 	"strconv"
+
+	"MyError"
+	"utils"
 
 	"config"
 
@@ -18,6 +18,20 @@ const (
 	DomainTable = "DomainTable"
 	RegionTable = "RegionTable"
 )
+
+type RRNew struct {
+	RrType uint16
+	Class  uint16
+	Ttl    uint32
+	Target []string
+}
+
+type RegionNew struct {
+	StarIP  uint32
+	EndIP   uint32
+	NetAddr uint32
+	NetMask uint32
+}
 
 type RR_MySQL struct {
 	DB *sql.DB
@@ -133,7 +147,7 @@ func (D *RR_MySQL) GetRRFromMySQL(domainId, regionId uint32) (*MySQLRR, *MyError
 	if e == nil {
 		var MyRR *MySQLRR
 		var rtype_tmp uint16
-		var isHybird bool = false //if both hava dns.TypeA and dns.TypeCNAME, isHybird is true ,else false
+		var isHybird = false //if both hava dns.TypeA and dns.TypeCNAME, isHybird is true ,else false
 		var uu []uint32
 		var u, v uint32 // u is for idRRTable, v is for Ttl
 		var w, x uint16 // w is for Rrtype(5 for dns.TypdCNAME and 1 for dns.TypeA),

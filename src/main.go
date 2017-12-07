@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/profile"
 
+	"backend"
 	"config"
-	"query"
 	"server"
 	"utils"
 )
@@ -25,8 +25,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU() * 3)
 	utils.InitLogger()
 	if config.RC.MySQLEnabled {
-		query.RC_MySQLConf = config.RC.MySQLConf
-		query.InitMySQL(query.RC_MySQLConf)
+		backend.RC_MySQLConf = config.RC.MySQLConf
+		backend.InitMySQL(backend.RC_MySQLConf)
 	}
 	server.Serve()
 

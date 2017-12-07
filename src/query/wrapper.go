@@ -10,6 +10,7 @@ import (
 	"github.com/miekg/dns"
 
 	"MyError"
+	"backend"
 	"config"
 	"utils"
 )
@@ -32,7 +33,7 @@ func GetSOARecord(d string) (*DomainSOANode, *MyError.MyError) {
 			utils.ServerLogger.Critical("GetSOARecord->GetDomainSOANodeFromCacheWithDomainName unknown error")
 		}
 	}
-	soa_t, ns, e := QuerySOA(d)
+	soa_t, ns, e := backend.QuerySOA(d)
 	// Need to store DomainSOANode and DomainNOde both
 	if e == nil && soa_t != nil && ns != nil {
 		soa = NewDomainSOANode(soa_t, ns)
@@ -63,8 +64,8 @@ func GetSOARecord(d string) (*DomainSOANode, *MyError.MyError) {
 
 func GetARecord(d string, srcIP string) (bool, []dns.RR, *MyError.MyError) {
 	var Regiontree *RegionTree
-	var bigloopflag bool = false // big loop flag
-	var c = 0                    //big loop count
+	var bigloopflag = false // big loop flag
+	var c = 0               //big loop count
 
 	//Can't loop for CNAME chain than bigger than CNAME_CHAIN_LENGTH
 	for dst := d; (bigloopflag == false) && (c < CNAME_CHAIN_LENGTH); c++ {
@@ -185,24 +186,24 @@ func GetAFromCache(dst, srcIP string) (*DomainNode, []dns.RR, *MyError.MyError) 
 }
 
 func GetAFromMySQLBackend(dst, srcIP string, regionTree *RegionTree) (bool, []dns.RR, uint16, *MyError.MyError) {
-	domainId, e := RRMySQL.GetDomainIDFromMySQL(dst)
+	domainId, e := backend.RRMySQL.GetDomainIDFromMySQL(dst)
 	if e != nil {
 		//todo:
 		//fmt.Println(utils.GetDebugLine(), "Error, GetDomainIDFromMySQL:", e)
 		return false, nil, uint16(0), e
 	}
-	region, ee := RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
+	region, ee := backend.RRMySQL.GetRegionWithIPFromMySQL(utils.Ip4ToInt32(utils.StrToIP(srcIP)))
 	if ee != nil {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRegionWithIPFromMySQL:", ee)
 		return false, nil, uint16(0), MyError.NewError(ee.ErrorNo, "GetRegionWithIPFromMySQL return "+ee.Error())
 	}
-	RR, eee := RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
+	RR, eee := backend.RRMySQL.GetRRFromMySQL(uint32(domainId), region.IdRegion)
 	if eee != nil && eee.ErrorNo == MyError.ERROR_NORESULT {
 		//fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
 		//	"RegionID:", region.IdRegion, eee)
 		//fmt.Println(utils.GetDebugLine(), "Try to GetRRFromMySQL with Default Region")
 		utils.ServerLogger.Debug("Try to GetRRFromMySQL with Default Region")
-		RR, eee = RRMySQL.GetRRFromMySQL(uint32(domainId), uint32(0))
+		RR, eee = backend.RRMySQL.GetRRFromMySQL(uint32(domainId), uint32(0))
 		if eee != nil {
 			//fmt.Println(utils.GetDebugLine(), "Error GetRRFromMySQL with DomainID:", domainId,
 			//	"RegionID:", 0, eee)
@@ -299,14 +300,14 @@ func GetAFromDNSBackend(
 		ns_a = append(ns_a, x.Ns)
 	}
 
-	rr, edns_h, edns, e := QueryA(dst, srcIP, ns_a, NS_SERVER_PORT)
+	rr, edns_h, edns, e := backend.QueryA(dst, srcIP, ns_a, backend.NS_SERVER_PORT)
 	//todo: ends_h ends need to be parsed and returned!
 	utils.QueryLogger.Info("QueryA(): dst:", dst, "srcIP:", srcIP, "ns_a:", ns_a, " returned rr:", rr, "edns_h:", edns_h,
 		"edns:", edns, "e:", e)
 	if e == nil && rr != nil {
 		var rr_i []dns.RR
 		//todo:if you add both "A" and "CNAME" record to a domain name,this should be wrong!
-		if a, ok := ParseA(rr, dst); ok {
+		if a, ok := backend.ParseA(rr, dst); ok {
 			//rr is A record
 			utils.ServerLogger.Debug("GetAFromDNSBackend : typeA record: ", a, " dns.TypeA: ", ok)
 			for _, i := range a {
@@ -315,7 +316,7 @@ func GetAFromDNSBackend(
 			//if A ,need parse edns client subnet
 			//			return true,rr_i,nil
 			rtype = dns.TypeA
-		} else if b, ok := ParseCNAME(rr, dst); ok {
+		} else if b, ok := backend.ParseCNAME(rr, dst); ok {
 			//rr is CNAME record
 			//fmt.Println(utils.GetDebugLine(), "GetAFromDNSBackend: typeCNAME record: ", b, " dns.TypeCNAME: ", ok)
 			utils.ServerLogger.Debug("GetAFromDNSBackend: typeCNAME record: ", b, " dns.TypeCNAME: ", ok)
@@ -347,7 +348,7 @@ func GetAFromDNSBackend(
 func AddAToRegionCache(dst string, srcIP string, R []dns.RR, edns_h *dns.RR_Header, edns *dns.EDNS0_SUBNET) {
 
 	var dn *DomainNode
-	var domainNodeExist bool = false
+	var domainNodeExist = false
 	var retry = 0
 	var e *MyError.MyError
 	for domainNodeExist = false; (domainNodeExist == false) && (retry < 5); {

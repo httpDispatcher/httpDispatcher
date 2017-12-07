@@ -60,6 +60,7 @@ func NewDomainNode(d string, soakey string, t uint32) (*DomainNode, *MyError.MyE
 	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not valid domain name")
 	}
+
 	return &DomainNode{
 		Domain: Domain{
 			DomainName: dns.Fqdn(d),
@@ -86,11 +87,10 @@ type Region struct {
 func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyError.MyError) {
 	if len(r) < 1 {
 		return nil, MyError.NewError(MyError.ERROR_PARAM, "cap of r ([]dns.RR) can not be less than 1 ")
-	} else {
-		//fmt.Println(utils.GetDebugLine(), "NewRegion: ",
-		//	" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
-		utils.ServerLogger.Debug("NewRegion: r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
 	}
+	//fmt.Println(utils.GetDebugLine(), "NewRegion: ",
+	//	" r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
+	utils.ServerLogger.Debug("NewRegion: r: ", r, " networkAddr: ", networkAddr, " networkMask: ", networkMask)
 
 	dr := &Region{
 		NetworkAddr: networkAddr,
@@ -103,20 +103,6 @@ func NewRegion(r []dns.RR, networkAddr uint32, networkMask int) (*Region, *MyErr
 		UpdateTime: time.Now(),
 	}
 	return dr, nil
-}
-
-type RRNew struct {
-	RrType uint16
-	Class  uint16
-	Ttl    uint32
-	Target []string
-}
-
-type RegionNew struct {
-	StarIP  uint32
-	EndIP   uint32
-	NetAddr uint32
-	NetMask uint32
 }
 
 type DomainSOANode struct {
@@ -142,8 +128,6 @@ type DomainConfig struct {
 }
 
 var once sync.Once
-
-
 
 func InitCache() *MyError.MyError {
 	once.Do(func() {

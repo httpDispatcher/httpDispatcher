@@ -1,4 +1,4 @@
-package query
+package backend
 
 import (
 	"net"
@@ -254,9 +254,9 @@ func QuerySOA(d string) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 	if _, ok := dns.IsDomainName(d); !ok {
 		return nil, nil, MyError.NewError(MyError.ERROR_PARAM, d+" is not a domain name")
 	}
-	cf, el := dns.ClientConfigFromFile("/etc/resolv.conf")
+	cf, el := dns.ClientConfigFromFile(DEFAULT_RESOLV_FILE)
 	if el != nil {
-		return nil, nil, MyError.NewError(MyError.ERROR_UNKNOWN, "Get dns config from file /etc/resolv.conf failed")
+		return nil, nil, MyError.NewError(MyError.ERROR_RESOLVCONF, el.Error())
 	}
 
 	var soa *dns.SOA
@@ -366,7 +366,10 @@ func ParseSOA(d string, r []dns.RR) (*dns.SOA, []*dns.NS, *MyError.MyError) {
 //
 func QueryNS(d string) ([]*dns.NS, *MyError.MyError) {
 	//	ds, dp, _, e := preQuery(d, false)
-	cf, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
+	cf, error := dns.ClientConfigFromFile(DEFAULT_RESOLV_FILE)
+	if error != nil {
+		return nil, MyError.NewError(MyError.ERROR_RESOLVCONF, error.Error())
+	}
 	e := &MyError.MyError{}
 	r := &dns.Msg{}
 
