@@ -145,24 +145,24 @@ func doQuery(c dns.Client, m dns.Msg, ds, dp string, queryType uint16, close cha
 			r, _, ee := c.Exchange(&m, ds+":"+dp)
 			if (ee != nil) || (r == nil) || (r.Answer == nil) {
 				utils.ServerLogger.Error(" doQuery: retry: %s times error: %s", strconv.Itoa(l), ee.Error())
-				if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
-					if strings.Contains(ee.Error(), "connection refused") {
-						if c.Net == TCP {
-							c.Net = UDP
-						}
-					} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
-						utils.ServerLogger.Error(" doQuery: response truncated: %v", r)
-						//					m.SetEdns0(4096,false)
-						//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
-						c.Net = TCP
+				//if (queryType == dns.TypeA) || (queryType == dns.TypeCNAME) {
+				if strings.Contains(ee.Error(), "connection refused") {
+					if c.Net == TCP {
+						c.Net = UDP
+					}
+				} else if (ee == dns.ErrTruncated) && queryType == dns.TypeA {
+					utils.ServerLogger.Error(" doQuery: response truncated: %v", r)
+					//					m.SetEdns0(4096,false)
+					//					m.SetQuestion(dns.Fqdn(domainName),dns.TypeCNAME)
+					c.Net = TCP
+				} else {
+					if c.Net == TCP {
+						c.Net = UDP
 					} else {
-						if c.Net == TCP {
-							c.Net = UDP
-						} else {
-							c.Net = TCP
-						}
+						c.Net = TCP
 					}
 				}
+				//}
 			} else {
 				return r
 			}
